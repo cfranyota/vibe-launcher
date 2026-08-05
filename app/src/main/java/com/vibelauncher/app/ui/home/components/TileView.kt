@@ -70,6 +70,9 @@ fun TileView(
                 )
             }
             if (hasNotification) {
+                // A standalone dot (this asset is now cropped tight to just the badge
+                // graphic, no surrounding transparent margin) offset clear of the 28dp
+                // icon's corner so it never overlaps the icon itself.
                 Image(
                     painter = painterResource(R.drawable.notification_badge),
                     contentDescription = "Notification",
