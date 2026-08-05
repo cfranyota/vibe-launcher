@@ -23,5 +23,6 @@ data class HomeUiState(
     val notificationPackages: Set<String> = emptySet(),
     val iconThemePackage: String = "",
     val applyIconThemeToHomeTiles: Boolean = false,
-    val eventCardColorArgb: Int = LauncherCard.toArgb()
+    val eventCardColorArgb: Int = LauncherCard.toArgb(),
+    val eventCardColorEnabled: Boolean = false
 )

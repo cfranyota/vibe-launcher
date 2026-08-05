@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.vibelauncher.app.ui.theme.LauncherCard
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -146,6 +147,7 @@ fun HomeScreen(
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
                 } else {
+                    val cardColor = if (uiState.eventCardColorEnabled) Color(uiState.eventCardColorArgb) else LauncherCard
                     val currentEvent = collapsedTimedEvent(uiState.timedEvents, uiState.selectedDayOffset, uiState.nowMillis)
                     val expandedTimedEvents = if (currentEvent == null) {
                         uiState.timedEvents
@@ -159,7 +161,7 @@ fun HomeScreen(
                         nowMillis = uiState.nowMillis,
                         onToggle = viewModel::toggleEventsExpanded,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                        cardColor = Color(uiState.eventCardColorArgb)
+                        cardColor = cardColor
                     )
                     ExpandableEventSection(
                         events = uiState.allDayEvents,
@@ -168,7 +170,7 @@ fun HomeScreen(
                         nowMillis = uiState.nowMillis,
                         onToggle = viewModel::toggleTasksExpanded,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                        cardColor = Color(uiState.eventCardColorArgb)
+                        cardColor = cardColor
                     )
                 }
             }

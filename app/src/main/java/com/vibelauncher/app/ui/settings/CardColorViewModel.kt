@@ -23,7 +23,7 @@ class CardColorViewModel(private val settingsRepository: SettingsRepository) : V
             settingsRepository.eventCardColor.collectLatest { argb ->
                 val hsv = FloatArray(3)
                 android.graphics.Color.colorToHSV(argb, hsv)
-                _uiState.value = CardColorUiState(
+                _uiState.value = _uiState.value.copy(
                     hue = hsv[0],
                     saturation = hsv[1],
                     brightness = hsv[2],
@@ -31,6 +31,16 @@ class CardColorViewModel(private val settingsRepository: SettingsRepository) : V
                 )
             }
         }
+        viewModelScope.launch {
+            settingsRepository.eventCardColorEnabled.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(enabled = enabled)
+            }
+        }
+    }
+
+    fun setEnabled(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(enabled = enabled)
+        viewModelScope.launch { settingsRepository.setEventCardColorEnabled(enabled) }
     }
 
     fun setHueSaturation(hue: Float, saturation: Float) {

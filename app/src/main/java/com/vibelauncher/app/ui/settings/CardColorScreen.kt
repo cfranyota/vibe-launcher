@@ -1,5 +1,6 @@
 package com.vibelauncher.app.ui.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +14,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -26,7 +29,9 @@ import com.vibelauncher.app.ui.home.components.EventCard
 import com.vibelauncher.app.ui.settings.components.BrightnessSlider
 import com.vibelauncher.app.ui.settings.components.ColorWheel
 import com.vibelauncher.app.ui.settings.components.OpacitySlider
+import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
+import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.ui.theme.LauncherWhite
 
 private val PREVIEW_EVENT = CalendarEvent(
@@ -45,7 +50,8 @@ private val PREVIEW_EVENT = CalendarEvent(
 @Composable
 fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
-    val color = Color.hsv(uiState.hue, uiState.saturation, uiState.brightness, uiState.opacity)
+    val customColor = Color.hsv(uiState.hue, uiState.saturation, uiState.brightness, uiState.opacity)
+    val previewColor = if (uiState.enabled) customColor else LauncherCard
 
     Column(
         modifier = Modifier
@@ -75,10 +81,31 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp)
         )
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "Custom color", color = LauncherWhite, style = MaterialTheme.typography.bodyLarge)
+            Switch(
+                checked = uiState.enabled,
+                onCheckedChange = viewModel::setEnabled,
+                colors = SwitchDefaults.colors(checkedTrackColor = LauncherRed)
+            )
+        }
+        Text(
+            text = if (uiState.enabled) "On - cards use the color below." else "Off - cards stay the default color.",
+            color = LauncherMutedGray,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp)
+        )
+
         EventCard(
             event = PREVIEW_EVENT,
             nowMillis = System.currentTimeMillis(),
-            backgroundColor = color,
+            backgroundColor = previewColor,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
 
