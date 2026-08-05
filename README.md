@@ -47,7 +47,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 Then set it as your default home app:
 
 ```bash
-adb shell cmd role add-role-holder android.app.role.HOME com.caseyfrancis.vibelauncher
+adb shell cmd role add-role-holder android.app.role.HOME com.vibelauncher.app
 ```
 
 ## Status

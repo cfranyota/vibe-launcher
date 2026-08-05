@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.caseyfrancis.vibelauncher"
+    namespace = "com.vibelauncher.app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.caseyfrancis.vibelauncher"
+        applicationId = "com.vibelauncher.app"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
