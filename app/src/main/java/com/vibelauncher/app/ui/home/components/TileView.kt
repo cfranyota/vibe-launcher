@@ -4,7 +4,6 @@ package com.vibelauncher.app.ui.home.components
 
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,18 +20,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import com.vibelauncher.app.R
 import com.vibelauncher.app.model.Tile
-import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.ui.theme.LauncherWhite
 import com.vibelauncher.app.util.IntentDefaults
 
@@ -76,26 +70,13 @@ fun TileView(
                 )
             }
             if (hasNotification) {
-                Box(
+                Image(
+                    painter = painterResource(R.drawable.notification_badge),
+                    contentDescription = "Notification",
                     modifier = Modifier
                         .offset(x = 22.dp, y = (-4).dp)
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(LauncherRed),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "*",
-                        color = LauncherWhite,
-                        textAlign = TextAlign.Center,
-                        style = TextStyle(
-                            fontSize = 17.sp,
-                            lineHeight = 17.sp,
-                            textAlign = TextAlign.Center,
-                            platformStyle = PlatformTextStyle(includeFontPadding = false)
-                        )
-                    )
-                }
+                        .size(20.dp)
+                )
             }
         }
         Text(
