@@ -9,8 +9,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,9 +44,11 @@ fun TileView(
     modifier: Modifier = Modifier
 ) {
     Column(
+        // Square (width == height), scaling with the available column width, so tiles are
+        // as large as the grid allows and border cards read as squares, not wide rectangles.
         modifier = modifier
             .fillMaxWidth()
-            .height(76.dp)
+            .aspectRatio(1f)
             .then(
                 if (showBorder) Modifier.border(1.dp, LauncherWhite, TileCornerShape) else Modifier
             )

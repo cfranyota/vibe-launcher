@@ -19,7 +19,7 @@ This is a first prototype, built for and tested on a physical device (Unihertz T
 - **Fixed header** - day of week, date, and weather (by zip code), pinned in place and never scrolling.
 - **Calendar & Tasks** - today's next event and task shown collapsed; tap to expand in place into a scrollable list of everything else that day, starting from whichever event you're currently on.
 - **8 customizable tiles** - reassign any of the 8 home-screen slots to any installed app, either by long-pressing the tile directly or from a dedicated "Home Screen Apps" screen in settings.
-- **Icon borders** - an "Icon borders" toggle in Launcher Settings draws a thin white outline around each home-screen tile card. Off by default.
+- **Icon borders** - an "Icon borders" toggle in Launcher Settings draws a thin white rounded-square outline around each home-screen tile, sized to the tile's full column width. Off by default.
 - **Notification badges** - a small red badge appears on any tile whose app has an active notification (unread texts, missed calls, etc.), via Android's notification listener API.
 - **App drawer** - swipe up (or tap the drag handle) to open a full searchable list of installed apps, with a slide-up/slide-down animation and swipe-down-to-dismiss.
 - **Icon theming** - apply any installed icon pack to the app drawer, with an option to also apply it to the home-screen tiles.
@@ -57,6 +57,7 @@ Early prototype - built iteratively through hands-on testing on a real device. E
 
 ## Changelog
 
+- **1.0.6** - Icon border tiles are now square (not wider-than-tall) and scale to fill the full column width, matching the reference design more closely.
 - **1.0.5** - Added an "Icon borders" toggle in Launcher Settings that draws a thin white outline around each home-screen tile. Off by default.
 - **1.0.4** - Added an on/off toggle for Card Color. Off by default - cards stay the fixed default color until explicitly enabled.
 - **1.0.3** - Fixed notification badge size and positioning.
