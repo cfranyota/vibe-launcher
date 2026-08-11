@@ -195,7 +195,8 @@ fun HomeScreen(
                         uiState.hasNotificationAccess &&
                             IntentDefaults.packageForTile(tile, context) in uiState.notificationPackages
                     },
-                    iconOverride = { tile -> viewModel.themedIconFor(tile) }
+                    iconOverride = { tile -> viewModel.themedIconFor(tile) },
+                    showBorder = uiState.tileBorderEnabled
                 )
                 DrawerHandle(onOpenDrawer = guardedOnOpenDrawer)
             }

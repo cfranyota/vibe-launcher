@@ -63,6 +63,7 @@ class HomeViewModel(
     private val applyIconThemeToHomeTiles = MutableStateFlow(false)
     private val eventCardColorArgb = MutableStateFlow(LauncherCard.toArgb())
     private val eventCardColorEnabled = MutableStateFlow(false)
+    private val tileBorderEnabled = MutableStateFlow(false)
 
     init {
         refreshCalendarPermissionAndEvents()
@@ -90,6 +91,9 @@ class HomeViewModel(
         viewModelScope.launch {
             settingsRepository.eventCardColorEnabled.collectLatest { eventCardColorEnabled.value = it }
         }
+        viewModelScope.launch {
+            settingsRepository.tileBorderEnabled.collectLatest { tileBorderEnabled.value = it }
+        }
     }
 
     val uiState: StateFlow<HomeUiState> = combine(
@@ -109,7 +113,8 @@ class HomeViewModel(
         iconThemePackage,
         applyIconThemeToHomeTiles,
         eventCardColorArgb,
-        eventCardColorEnabled
+        eventCardColorEnabled,
+        tileBorderEnabled
     ) { values ->
         val events = values[1] as DayEvents
         @Suppress("UNCHECKED_CAST")
@@ -132,7 +137,8 @@ class HomeViewModel(
             iconThemePackage = values[13] as String,
             applyIconThemeToHomeTiles = values[14] as Boolean,
             eventCardColorArgb = values[15] as Int,
-            eventCardColorEnabled = values[16] as Boolean
+            eventCardColorEnabled = values[16] as Boolean,
+            tileBorderEnabled = values[17] as Boolean
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

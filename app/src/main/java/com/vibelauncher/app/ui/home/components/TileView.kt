@@ -4,6 +4,7 @@ package com.vibelauncher.app.ui.home.components
 
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.vibelauncher.app.R
 import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.ui.theme.LauncherWhite
+import com.vibelauncher.app.ui.theme.TileCornerShape
 import com.vibelauncher.app.util.IntentDefaults
 
 @Composable
@@ -38,12 +40,16 @@ fun TileView(
     onLongPress: () -> Unit,
     hasNotification: Boolean = false,
     iconOverride: Drawable? = null,
+    showBorder: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .height(76.dp)
+            .then(
+                if (showBorder) Modifier.border(1.dp, LauncherWhite, TileCornerShape) else Modifier
+            )
             .combinedClickable(onClick = onClick, onLongClick = onLongPress)
             .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

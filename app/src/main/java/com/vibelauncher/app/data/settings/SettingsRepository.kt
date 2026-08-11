@@ -14,6 +14,7 @@ private val ICON_THEME_PACKAGE_KEY = stringPreferencesKey("icon_theme_package")
 private val APPLY_ICON_THEME_TO_HOME_TILES_KEY = booleanPreferencesKey("apply_icon_theme_to_home_tiles")
 private val EVENT_CARD_COLOR_KEY = intPreferencesKey("event_card_color")
 private val EVENT_CARD_COLOR_ENABLED_KEY = booleanPreferencesKey("event_card_color_enabled")
+private val TILE_BORDER_ENABLED_KEY = booleanPreferencesKey("tile_border_enabled")
 
 /** Default event-card color, matching `LauncherCard` in ui/theme/Color.kt (0xFF1A1A1A) -
  *  duplicated as a raw constant here so this data-layer file doesn't need to depend on
@@ -57,5 +58,12 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setEventCardColorEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[EVENT_CARD_COLOR_ENABLED_KEY] = enabled }
+    }
+
+    /** Off by default - home tiles have no border until the user opts in. */
+    val tileBorderEnabled = context.settingsDataStore.data.map { it[TILE_BORDER_ENABLED_KEY] ?: false }
+
+    suspend fun setTileBorderEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[TILE_BORDER_ENABLED_KEY] = enabled }
     }
 }

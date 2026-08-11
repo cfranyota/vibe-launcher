@@ -95,6 +95,26 @@ fun SettingsScreen(
             Icon(imageVector = Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = LauncherMutedGray)
         }
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = { viewModel.setTileBorderEnabled(!uiState.tileBorderEnabled) })
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = uiState.tileBorderEnabled,
+                onCheckedChange = viewModel::setTileBorderEnabled,
+                colors = CheckboxDefaults.colors(checkedColor = LauncherRed)
+            )
+            Text(
+                text = "Icon borders",
+                color = LauncherWhite,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+
         Text(
             text = "Icon Theme",
             color = LauncherMutedGray,

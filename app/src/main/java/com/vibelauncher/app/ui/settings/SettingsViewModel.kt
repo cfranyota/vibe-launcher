@@ -31,6 +31,11 @@ class SettingsViewModel(
                 _uiState.value = _uiState.value.copy(applyIconThemeToHomeTiles = enabled)
             }
         }
+        viewModelScope.launch {
+            settingsRepository.tileBorderEnabled.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(tileBorderEnabled = enabled)
+            }
+        }
     }
 
     fun selectIconTheme(packageName: String) {
@@ -39,6 +44,10 @@ class SettingsViewModel(
 
     fun setApplyIconThemeToHomeTiles(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setApplyIconThemeToHomeTiles(enabled) }
+    }
+
+    fun setTileBorderEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setTileBorderEnabled(enabled) }
     }
 
     class Factory(

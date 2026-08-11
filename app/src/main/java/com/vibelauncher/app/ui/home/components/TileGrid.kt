@@ -22,6 +22,7 @@ fun TileGrid(
     onTileLongPress: (Tile) -> Unit,
     hasNotification: (Tile) -> Boolean = { false },
     iconOverride: (Tile) -> Drawable? = { null },
+    showBorder: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -40,6 +41,7 @@ fun TileGrid(
                         onLongPress = { onTileLongPress(tile) },
                         hasNotification = hasNotification(tile),
                         iconOverride = iconOverride(tile),
+                        showBorder = showBorder,
                         modifier = Modifier.weight(1f)
                     )
                 }
