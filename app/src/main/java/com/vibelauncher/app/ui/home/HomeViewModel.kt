@@ -64,6 +64,20 @@ class HomeViewModel(
     private val eventCardColorArgb = MutableStateFlow(LauncherCard.toArgb())
     private val eventCardColorEnabled = MutableStateFlow(false)
     private val tileBorderEnabled = MutableStateFlow(false)
+    private val tileBorderSizeStep = MutableStateFlow(5)
+
+    // Owned by the ViewModel (not composable `remember` state) because Navigation Compose
+    // disposes and recreates HomeScreen's composition every time the app drawer is opened
+    // and dismissed - `remember` state would reset on every trip to the drawer and back,
+    // silently reverting to the (larger, less safe) fallback tile size. The ViewModel
+    // survives that navigation, so this ratchets up once per session and stays put. See
+    // HomeScreen's safeMaxTileSizeDp for how it's used.
+    var lockedTwoBarContentHeightPx: Int = 0
+        private set
+
+    fun observeTwoBarContentHeightPx(px: Int) {
+        if (px > lockedTwoBarContentHeightPx) lockedTwoBarContentHeightPx = px
+    }
 
     init {
         refreshCalendarPermissionAndEvents()
@@ -94,6 +108,9 @@ class HomeViewModel(
         viewModelScope.launch {
             settingsRepository.tileBorderEnabled.collectLatest { tileBorderEnabled.value = it }
         }
+        viewModelScope.launch {
+            settingsRepository.tileBorderSizeStep.collectLatest { tileBorderSizeStep.value = it }
+        }
     }
 
     val uiState: StateFlow<HomeUiState> = combine(
@@ -114,7 +131,8 @@ class HomeViewModel(
         applyIconThemeToHomeTiles,
         eventCardColorArgb,
         eventCardColorEnabled,
-        tileBorderEnabled
+        tileBorderEnabled,
+        tileBorderSizeStep
     ) { values ->
         val events = values[1] as DayEvents
         @Suppress("UNCHECKED_CAST")
@@ -138,7 +156,8 @@ class HomeViewModel(
             applyIconThemeToHomeTiles = values[14] as Boolean,
             eventCardColorArgb = values[15] as Int,
             eventCardColorEnabled = values[16] as Boolean,
-            tileBorderEnabled = values[17] as Boolean
+            tileBorderEnabled = values[17] as Boolean,
+            tileBorderSizeStep = values[18] as Int
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

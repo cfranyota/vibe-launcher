@@ -25,5 +25,6 @@ data class HomeUiState(
     val applyIconThemeToHomeTiles: Boolean = false,
     val eventCardColorArgb: Int = LauncherCard.toArgb(),
     val eventCardColorEnabled: Boolean = false,
-    val tileBorderEnabled: Boolean = false
+    val tileBorderEnabled: Boolean = false,
+    val tileBorderSizeStep: Int = 5
 )

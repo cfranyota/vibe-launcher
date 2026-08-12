@@ -15,11 +15,16 @@ private val APPLY_ICON_THEME_TO_HOME_TILES_KEY = booleanPreferencesKey("apply_ic
 private val EVENT_CARD_COLOR_KEY = intPreferencesKey("event_card_color")
 private val EVENT_CARD_COLOR_ENABLED_KEY = booleanPreferencesKey("event_card_color_enabled")
 private val TILE_BORDER_ENABLED_KEY = booleanPreferencesKey("tile_border_enabled")
+private val TILE_BORDER_SIZE_STEP_KEY = intPreferencesKey("tile_border_size_step")
 
 /** Default event-card color, matching `LauncherCard` in ui/theme/Color.kt (0xFF1A1A1A) -
  *  duplicated as a raw constant here so this data-layer file doesn't need to depend on
  *  the UI theme package. */
 private const val DEFAULT_EVENT_CARD_COLOR = 0xFF1A1A1A.toInt()
+
+/** Default border-size step on the 1-10 scale (see TileView.kt's resolveTileSizeDp) - the
+ *  midpoint, not the max. */
+private const val DEFAULT_TILE_BORDER_SIZE_STEP = 5
 
 class SettingsRepository(private val context: Context) {
 
@@ -65,5 +70,12 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setTileBorderEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[TILE_BORDER_ENABLED_KEY] = enabled }
+    }
+
+    /** 1-10 scale, defaults to the midpoint. */
+    val tileBorderSizeStep = context.settingsDataStore.data.map { it[TILE_BORDER_SIZE_STEP_KEY] ?: DEFAULT_TILE_BORDER_SIZE_STEP }
+
+    suspend fun setTileBorderSizeStep(step: Int) {
+        context.settingsDataStore.edit { it[TILE_BORDER_SIZE_STEP_KEY] = step }
     }
 }

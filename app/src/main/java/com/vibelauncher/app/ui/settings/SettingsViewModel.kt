@@ -36,6 +36,11 @@ class SettingsViewModel(
                 _uiState.value = _uiState.value.copy(tileBorderEnabled = enabled)
             }
         }
+        viewModelScope.launch {
+            settingsRepository.tileBorderSizeStep.collectLatest { step ->
+                _uiState.value = _uiState.value.copy(tileBorderSizeStep = step)
+            }
+        }
     }
 
     fun selectIconTheme(packageName: String) {
@@ -48,6 +53,10 @@ class SettingsViewModel(
 
     fun setTileBorderEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setTileBorderEnabled(enabled) }
+    }
+
+    fun setTileBorderSizeStep(step: Int) {
+        viewModelScope.launch { settingsRepository.setTileBorderSizeStep(step) }
     }
 
     class Factory(

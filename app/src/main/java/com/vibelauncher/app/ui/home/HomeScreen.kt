@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -28,6 +29,7 @@ import com.vibelauncher.app.ui.theme.LauncherCard
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -42,6 +44,8 @@ import com.vibelauncher.app.ui.home.components.CalendarPermissionCard
 import com.vibelauncher.app.ui.home.components.DateWeatherHeader
 import com.vibelauncher.app.ui.home.components.DrawerHandle
 import com.vibelauncher.app.ui.home.components.ExpandableEventSection
+import com.vibelauncher.app.ui.home.components.MAX_TILE_SIZE_DP
+import com.vibelauncher.app.ui.home.components.MIN_TILE_SIZE_DP
 import com.vibelauncher.app.ui.home.components.NotificationAccessCard
 import com.vibelauncher.app.ui.home.components.PageIndicator
 import com.vibelauncher.app.ui.home.components.TileGrid
@@ -57,6 +61,24 @@ import kotlin.math.abs
 private val HEADER_SWIPE_ZONE_DP = 180.dp
 private const val SWIPE_THRESHOLD_PX = 120f
 
+/** TileGrid's own vertical padding (12dp top + 6dp bottom) + the fixed gap between its two
+ *  rows (TileGrid's ROW_GAP_DP = 12dp - deliberately not tied to the horizontal spacing, so
+ *  this stays a true constant regardless of tile size or leftover row width) +
+ *  DrawerHandle's height (24dp) - the non-tile vertical space the pinned bottom section
+ *  always needs, regardless of tile size. */
+private val GRID_CHROME_DP = 54.dp
+
+/** Small safety buffer subtracted before sizing tiles, so the bare-minimum-safe-fit math
+ *  has a little slack for rounding rather than sizing tiles right up to the exact edge. */
+private val EXTRA_MARGIN_DP = 4.dp
+
+/** Conservative fallback for the collapsed content's height (page indicator + 2 stacked
+ *  cards, header NOT included - that's measured separately as headerHeightPx) - used only
+ *  until a real 2-bar day has been measured this session (see lockedTwoBarContentHeightPx).
+ *  Based on this session's empirical range (page indicator ~14dp + 2 cards with gaps
+ *  ~130dp), rounded up for safety. */
+private val FALLBACK_TWO_BAR_CONTENT_DP = 160.dp
+
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
@@ -67,6 +89,27 @@ fun HomeScreen(
     var showZipDialog by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     val context = LocalContext.current
+
+    // Measured at runtime rather than hand-tuned, so the tile grid can never grow tall
+    // enough to crowd the Calendar/Task bars above it. Each EventCard renders at a fixed
+    // height regardless of its text (single line, ellipsized - see EventCard.kt), so "the
+    // height of 2 stacked cards" is a constant for this device, not something that should
+    // vary by day. lockedTwoBarContentHeightPx ratchets up to the tallest real 2-bar
+    // measurement seen this session and never decreases - every day (0, 1, or 2 bars) then
+    // sizes tiles against that same worst-case number, so tiles never resize as you swipe
+    // between days and are never bigger than what a 2-bar day can safely fit.
+    var totalHeightPx by remember { mutableIntStateOf(0) }
+    var headerHeightPx by remember { mutableIntStateOf(0) }
+    val safeMaxTileSizeDp = with(density) {
+        val totalDp = totalHeightPx.toDp()
+        val twoBarContentDp = if (viewModel.lockedTwoBarContentHeightPx > 0) {
+            viewModel.lockedTwoBarContentHeightPx.toDp()
+        } else {
+            FALLBACK_TWO_BAR_CONTENT_DP
+        }
+        val topContentDp = headerHeightPx.toDp() + twoBarContentDp
+        ((totalDp - topContentDp - GRID_CHROME_DP - EXTRA_MARGIN_DP) / 2).coerceIn(MIN_TILE_SIZE_DP, MAX_TILE_SIZE_DP)
+    }
 
     // This composable is freshly (re)created every time Home becomes the visible screen
     // again (Navigation Compose disposes it while the drawer is on top), so this captures
@@ -102,6 +145,7 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .onGloballyPositioned { totalHeightPx = it.size.height }
             // No opaque background here - the activity window itself renders the system
             // wallpaper behind this content (see Theme.VibeLauncher's windowShowWallpaper
             // + MainActivity's FLAG_SHOW_WALLPAPER); painting a solid color would hide it.
@@ -119,7 +163,8 @@ fun HomeScreen(
                 selectedDayOffset = uiState.selectedDayOffset,
                 weather = uiState.weather,
                 weatherLoading = uiState.weatherLoading,
-                onWeatherClick = { showZipDialog = true }
+                onWeatherClick = { showZipDialog = true },
+                modifier = Modifier.onGloballyPositioned { headerHeightPx = it.size.height }
             )
 
             // Flexible middle: gets whatever space is left after the header and the
@@ -132,46 +177,66 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                PageIndicator(activeIndex = uiState.selectedDayOffset + 12)
+                val currentEvent = collapsedTimedEvent(uiState.timedEvents, uiState.selectedDayOffset, uiState.nowMillis)
+                val bothBarsShowing = uiState.hasCalendarPermission &&
+                    currentEvent != null &&
+                    uiState.allDayEvents.firstOrNull() != null
 
-                if (!uiState.hasNotificationAccess) {
-                    NotificationAccessCard(
-                        onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
-                    )
-                }
-
-                if (!uiState.hasCalendarPermission) {
-                    CalendarPermissionCard(
-                        onClick = { permissionLauncher.launch(android.Manifest.permission.READ_CALENDAR) },
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                    )
-                } else {
-                    val cardColor = if (uiState.eventCardColorEnabled) Color(uiState.eventCardColorArgb) else LauncherCard
-                    val currentEvent = collapsedTimedEvent(uiState.timedEvents, uiState.selectedDayOffset, uiState.nowMillis)
-                    val expandedTimedEvents = if (currentEvent == null) {
-                        uiState.timedEvents
-                    } else {
-                        uiState.timedEvents.dropWhile { it.id != currentEvent.id }
+                // A plain (non-weighted, non-scrolling) wrapper around the same content, so
+                // its measured height reflects the content's own natural size rather than
+                // whatever the scrollable parent above was allotted. Ratchets
+                // lockedTwoBarContentHeightPx (see safeMaxTileSizeDp above) up to the
+                // tallest 2-bar measurement seen so far - never down - so a transient/
+                // incomplete measurement (e.g. caught mid-swipe, before an async calendar
+                // load settles) can never poison the session; it just gets superseded by
+                // the next, fully-settled 2-bar render.
+                Column(
+                    modifier = Modifier.onGloballyPositioned {
+                        if (bothBarsShowing && !uiState.eventsExpanded && !uiState.tasksExpanded) {
+                            viewModel.observeTwoBarContentHeightPx(it.size.height)
+                        }
                     }
-                    ExpandableEventSection(
-                        events = expandedTimedEvents,
-                        collapsedEvent = currentEvent,
-                        expanded = uiState.eventsExpanded,
-                        nowMillis = uiState.nowMillis,
-                        onToggle = viewModel::toggleEventsExpanded,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                        cardColor = cardColor
-                    )
-                    ExpandableEventSection(
-                        events = uiState.allDayEvents,
-                        collapsedEvent = uiState.allDayEvents.firstOrNull(),
-                        expanded = uiState.tasksExpanded,
-                        nowMillis = uiState.nowMillis,
-                        onToggle = viewModel::toggleTasksExpanded,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                        cardColor = cardColor
-                    )
+                ) {
+                    PageIndicator(activeIndex = uiState.selectedDayOffset + 12)
+
+                    if (!uiState.hasNotificationAccess) {
+                        NotificationAccessCard(
+                            onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    if (!uiState.hasCalendarPermission) {
+                        CalendarPermissionCard(
+                            onClick = { permissionLauncher.launch(android.Manifest.permission.READ_CALENDAR) },
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                        )
+                    } else {
+                        val cardColor = if (uiState.eventCardColorEnabled) Color(uiState.eventCardColorArgb) else LauncherCard
+                        val expandedTimedEvents = if (currentEvent == null) {
+                            uiState.timedEvents
+                        } else {
+                            uiState.timedEvents.dropWhile { it.id != currentEvent.id }
+                        }
+                        ExpandableEventSection(
+                            events = expandedTimedEvents,
+                            collapsedEvent = currentEvent,
+                            expanded = uiState.eventsExpanded,
+                            nowMillis = uiState.nowMillis,
+                            onToggle = viewModel::toggleEventsExpanded,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                            cardColor = cardColor
+                        )
+                        ExpandableEventSection(
+                            events = uiState.allDayEvents,
+                            collapsedEvent = uiState.allDayEvents.firstOrNull(),
+                            expanded = uiState.tasksExpanded,
+                            nowMillis = uiState.nowMillis,
+                            onToggle = viewModel::toggleTasksExpanded,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                            cardColor = cardColor
+                        )
+                    }
                 }
             }
 
@@ -196,7 +261,9 @@ fun HomeScreen(
                             IntentDefaults.packageForTile(tile, context) in uiState.notificationPackages
                     },
                     iconOverride = { tile -> viewModel.themedIconFor(tile) },
-                    showBorder = uiState.tileBorderEnabled
+                    showBorder = uiState.tileBorderEnabled,
+                    borderSizeStep = uiState.tileBorderSizeStep,
+                    dynamicMaxSizeDp = safeMaxTileSizeDp
                 )
                 DrawerHandle(onOpenDrawer = guardedOnOpenDrawer)
             }

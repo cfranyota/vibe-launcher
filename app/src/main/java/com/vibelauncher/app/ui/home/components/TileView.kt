@@ -9,8 +9,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +23,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.vibelauncher.app.R
@@ -32,6 +31,27 @@ import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.ui.theme.LauncherWhite
 import com.vibelauncher.app.ui.theme.TileCornerShape
 import com.vibelauncher.app.util.IntentDefaults
+
+/** Nominal bounds for a tile's size. The real ceiling on any given screen is enforced at
+ *  render time by HomeScreen's runtime-measured `dynamicMaxSizeDp` (see TileGrid/HomeScreen),
+ *  which can only ever be <= MAX_TILE_SIZE_DP - so it's safe for this nominal max to be
+ *  generous; the dynamic clamp is what actually guarantees the Calendar/Task bars are never
+ *  crowded, on any day or content combination. */
+val MIN_TILE_SIZE_DP = 64.dp
+val MAX_TILE_SIZE_DP = 128.dp
+
+/** The single source of truth for "how big is a tile right now" - shared by [TileView]
+ *  itself and by [TileGrid], so the two can never disagree. The dynamic (runtime-measured,
+ *  always safe) cap always wins over the nominal max. The bordered size is otherwise
+ *  user-adjustable via a discrete 1-10 step (see the Launcher Settings slider): step 1 maps
+ *  to MIN_TILE_SIZE_DP, step 10 to the safe cap, with a straight linear interpolation in
+ *  between. With the border off, tiles stay at the safe max regardless of the step. */
+fun resolveTileSizeDp(showBorder: Boolean, borderSizeStep: Int, dynamicMaxSizeDp: Dp): Dp {
+    val cap = dynamicMaxSizeDp.coerceAtMost(MAX_TILE_SIZE_DP)
+    if (!showBorder) return cap
+    val fraction = (borderSizeStep.coerceIn(1, 10) - 1) / 9f
+    return MIN_TILE_SIZE_DP + (cap - MIN_TILE_SIZE_DP) * fraction
+}
 
 @Composable
 fun TileView(
@@ -41,14 +61,14 @@ fun TileView(
     hasNotification: Boolean = false,
     iconOverride: Drawable? = null,
     showBorder: Boolean = false,
+    borderSizeStep: Int = 5,
+    dynamicMaxSizeDp: Dp = MAX_TILE_SIZE_DP,
     modifier: Modifier = Modifier
 ) {
+    val tileSize = resolveTileSizeDp(showBorder, borderSizeStep, dynamicMaxSizeDp)
     Column(
-        // Square (width == height), scaling with the available column width, so tiles are
-        // as large as the grid allows and border cards read as squares, not wide rectangles.
         modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
+            .size(tileSize)
             .then(
                 if (showBorder) Modifier.border(1.dp, LauncherWhite, TileCornerShape) else Modifier
             )

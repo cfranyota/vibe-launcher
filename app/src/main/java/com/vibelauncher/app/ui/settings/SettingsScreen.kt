@@ -22,6 +22,8 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -39,6 +41,7 @@ import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
 import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.ui.theme.LauncherWhite
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -112,6 +115,25 @@ fun SettingsScreen(
                 color = LauncherWhite,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+
+        if (uiState.tileBorderEnabled) {
+            Text(
+                text = "Icon size: ${uiState.tileBorderSizeStep}/10",
+                color = LauncherMutedGray,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+            Slider(
+                value = uiState.tileBorderSizeStep.toFloat(),
+                onValueChange = { viewModel.setTileBorderSizeStep(it.roundToInt()) },
+                valueRange = 1f..10f,
+                steps = 8,
+                colors = SliderDefaults.colors(thumbColor = LauncherRed, activeTrackColor = LauncherRed),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
             )
         }
 
