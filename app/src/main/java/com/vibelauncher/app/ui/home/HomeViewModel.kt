@@ -4,6 +4,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Drawable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -72,7 +75,11 @@ class HomeViewModel(
     // silently reverting to the (larger, less safe) fallback tile size. The ViewModel
     // survives that navigation, so this ratchets up once per session and stays put. See
     // HomeScreen's safeMaxTileSizeDp for how it's used.
-    var lockedTwoBarContentHeightPx: Int = 0
+    // A Compose-observable state (not a plain var) - HomeScreen reads this while computing
+    // safeMaxTileSizeDp, and needs to recompose with the corrected (usually smaller, less
+    // conservative) value the moment the real measurement lands, not just on whatever next
+    // unrelated recomposition happens to occur.
+    var lockedTwoBarContentHeightPx: Int by mutableIntStateOf(0)
         private set
 
     fun observeTwoBarContentHeightPx(px: Int) {
