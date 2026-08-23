@@ -110,12 +110,13 @@ object IntentDefaults {
     }
 
     // ─── Vibe Bar actions ───────────────────────────────────────────────────────
-    // '-' (to-do) and '/' (note) save locally (see NotesRepository/TodoRepository) and
-    // never reach here. '@' and '#' execute directly (SmsManager/TelecomManager) rather
-    // than handing off to another app. '+' still hands off to the Calendar app - there's
-    // a real system calendar for events to live in, unlike notes/to-dos. Every one of
-    // these is guarded - this app is the Home launcher, so an uncaught exception from
-    // any of these would crash the whole home screen.
+    // '-' (to-do) saves locally (see TodoRepository) and never reaches here. '/' (note)
+    // is never saved anywhere - it's an ephemeral draft the user shares or copies
+    // straight out of the NoteBubble, hence shareText() below. '@' and '#' execute
+    // directly (SmsManager/TelecomManager) rather than handing off to another app. '+'
+    // still hands off to the Calendar app - there's a real system calendar for events to
+    // live in, unlike a quick to-do. Every one of these is guarded - this app is the Home
+    // launcher, so an uncaught exception from any of these would crash the whole home screen.
 
     private fun start(context: Context, intent: Intent): Boolean {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -143,6 +144,14 @@ object IntentDefaults {
      *  getSystemService(SmsManager::class.java) overload, since minSdk is 26. */
     fun sendSmsDirect(context: Context, phone: String, body: String): Boolean =
         runCatching { SmsManager.getDefault().sendTextMessage(phone, null, body, null, null) }.isSuccess
+
+    /** '/' - opens the system share sheet with the note's text (recent direct-share
+     *  contacts row plus the full app list - Messages, Gmail, Quick Share, etc. - all
+     *  handled by the OS chooser, nothing custom needed here). */
+    fun shareText(context: Context, body: String): Boolean {
+        val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, body)
+        return start(context, Intent.createChooser(intent, null))
+    }
 
     /** No prefix - runs a plain web search. Most devices resolve ACTION_WEB_SEARCH via
      *  their default search app; where nothing does, fall back to a browser search URL. */

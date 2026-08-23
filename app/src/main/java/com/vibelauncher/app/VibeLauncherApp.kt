@@ -17,8 +17,6 @@ import com.vibelauncher.app.ui.drawer.AppDrawerScreen
 import com.vibelauncher.app.ui.drawer.AppDrawerViewModel
 import com.vibelauncher.app.ui.home.HomeScreen
 import com.vibelauncher.app.ui.home.HomeViewModel
-import com.vibelauncher.app.ui.notes.NotesScreen
-import com.vibelauncher.app.ui.notes.NotesViewModel
 import com.vibelauncher.app.ui.picker.AppPickerViewModel
 import com.vibelauncher.app.ui.settings.CardColorScreen
 import com.vibelauncher.app.ui.settings.CardColorViewModel
@@ -35,7 +33,6 @@ const val ROUTE_DRAWER = "drawer"
 const val ROUTE_SETTINGS = "settings"
 const val ROUTE_HOME_APPS = "home_apps"
 const val ROUTE_CARD_COLOR = "card_color"
-const val ROUTE_NOTES = "notes"
 const val ROUTE_TODOS = "todos"
 
 @Composable
@@ -62,7 +59,6 @@ fun VibeLauncherApp(navController: NavHostController = rememberNavController()) 
                     viewModel = homeViewModel,
                     pickerViewModelFactory = pickerFactory,
                     onOpenDrawer = { navController.navigate(ROUTE_DRAWER) },
-                    onOpenNotes = { navController.navigate(ROUTE_NOTES) },
                     onOpenTodos = { navController.navigate(ROUTE_TODOS) }
                 )
             }
@@ -117,12 +113,6 @@ fun VibeLauncherApp(navController: NavHostController = rememberNavController()) 
                     viewModel = cardColorViewModel,
                     onBack = { navController.popBackStack() }
                 )
-            }
-            composable(ROUTE_NOTES) {
-                val notesViewModel: NotesViewModel = viewModel(
-                    factory = NotesViewModel.Factory(container.notesRepository)
-                )
-                NotesScreen(viewModel = notesViewModel, onBack = { navController.popBackStack() })
             }
             composable(ROUTE_TODOS) {
                 val todoViewModel: TodoViewModel = viewModel(

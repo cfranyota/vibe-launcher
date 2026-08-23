@@ -79,7 +79,6 @@ import com.vibelauncher.app.data.apps.AppInfo
 import com.vibelauncher.app.data.apps.InstalledAppsRepository
 import com.vibelauncher.app.data.contacts.ContactResult
 import com.vibelauncher.app.data.contacts.ContactsRepository
-import com.vibelauncher.app.data.notes.NotesRepository
 import com.vibelauncher.app.data.todos.TodoRepository
 import com.vibelauncher.app.features.vibebar.VIBE_BAR_COMMAND_PREFIXES
 import com.vibelauncher.app.features.vibebar.VIBE_BAR_NOTE_PREFIX
@@ -106,17 +105,17 @@ private const val VIBE_BAR_MIN_HEIGHT_DP = 56
  * A command input that's invisible until you start typing on a hardware keyboard, then
  * slides up from the bottom of the screen; deleting back to empty slides it away again.
  * The first typed character is a command prefix routing to a quick action: '@' text a
- * contact, '#' call a contact, '-' add a to-do, '/' add a note, '+' add a calendar event,
- * '?' search/launch an installed app, no prefix runs a web search. '@'/'#' execute
- * directly (SmsManager/TelecomManager); '-'/'/' save into Vibe Launcher's own local
- * stores; '+' hands off to the Calendar app, same as ever.
+ * contact, '#' call a contact, '-' add a to-do, '/' open a scratch note (NoteBubble -
+ * never saved by Vibe Bar itself), '+' add a calendar event, '?' search/launch an
+ * installed app, no prefix runs a web search. '@'/'#' execute directly
+ * (SmsManager/TelecomManager); '-' saves into Vibe Launcher's own local to-do store;
+ * '+' hands off to the Calendar app, same as ever.
  */
 @Composable
-fun VibeBar(keyboardInputEnabled: Boolean, modifier: Modifier = Modifier) {
+fun VibeBar(keyboardInputEnabled: Boolean, onOpenNote: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val contactsRepository = remember { ContactsRepository(context) }
     val installedAppsRepository = remember { InstalledAppsRepository(context) }
-    val notesRepository = remember { NotesRepository(context) }
     val todoRepository = remember { TodoRepository(context) }
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -190,7 +189,18 @@ fun VibeBar(keyboardInputEnabled: Boolean, modifier: Modifier = Modifier) {
     val parsed = parseVibeBarInput(text.text, lockedPrefix)
     val prefix = parsed.prefix
     val searchTerm = parsed.searchTerm
-    val noteMode = expanded && prefix == VIBE_BAR_NOTE_PREFIX
+
+    // '/' never renders inside Vibe Bar - it hands off to the standalone NoteBubble
+    // immediately. The common path (typing '/' as the very first hardware keystroke) is
+    // intercepted earlier, in the armed box below, so the bar never actually animates
+    // open for it; this covers the rarer path of reaching '/' while already expanded
+    // (e.g. tapping the legend's Note entry).
+    LaunchedEffect(prefix, expanded) {
+        if (expanded && prefix == VIBE_BAR_NOTE_PREFIX) {
+            onOpenNote()
+            dismiss()
+        }
+    }
 
     val contactResults = remember(prefix, searchTerm, hasContactsPermission, selectedContact) {
         if (prefix in listOf('@', '#') && hasContactsPermission && selectedContact == null && searchTerm.isNotBlank()) {
@@ -244,10 +254,7 @@ fun VibeBar(keyboardInputEnabled: Boolean, modifier: Modifier = Modifier) {
                 coroutineScope.launch { todoRepository.add(payload) }
                 dismiss()
             }
-            VIBE_BAR_NOTE_PREFIX -> if (payload.isNotBlank()) {
-                coroutineScope.launch { notesRepository.add(payload) }
-                dismiss()
-            }
+            VIBE_BAR_NOTE_PREFIX -> {} // '/' hands off to NoteBubble immediately, never reaches submit()
             '+' -> if (payload.isNotBlank() && IntentDefaults.insertCalendarEvent(context, payload, allDay = false)) {
                 dismiss()
             }
@@ -285,6 +292,10 @@ fun VibeBar(keyboardInputEnabled: Boolean, modifier: Modifier = Modifier) {
                 .onPreviewKeyEvent { event ->
                     if (expanded || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     val typed = printableHardwareText(event.nativeKeyEvent.unicodeChar) ?: return@onPreviewKeyEvent false
+                    if (typed == VIBE_BAR_NOTE_PREFIX.toString()) {
+                        onOpenNote()
+                        return@onPreviewKeyEvent true
+                    }
                     clearCommand()
                     text = TextFieldValue(typed, selection = TextRange(typed.length))
                     expanded = true
@@ -314,51 +325,49 @@ fun VibeBar(keyboardInputEnabled: Boolean, modifier: Modifier = Modifier) {
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (!noteMode) {
-                    val hasResults = contactResults.isNotEmpty() || appResults.isNotEmpty() ||
-                        (prefix in listOf('@', '#') && !hasContactsPermission)
-                    if (hasResults) {
-                        Column(
-                            Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            contactResults.forEach { contact ->
-                                SuggestionRow(
-                                    text = "${contact.name} (${contact.phoneLabel})",
-                                    icon = Icons.Filled.Person
-                                ) {
-                                    if (prefix == '#') {
-                                        callToConfirm = contact
-                                        dismiss()
-                                    } else {
-                                        lockedPrefix = prefix
-                                        selectedContact = contact
-                                        text = TextFieldValue()
-                                    }
+                val hasResults = contactResults.isNotEmpty() || appResults.isNotEmpty() ||
+                    (prefix in listOf('@', '#') && !hasContactsPermission)
+                if (hasResults) {
+                    Column(
+                        Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        contactResults.forEach { contact ->
+                            SuggestionRow(
+                                text = "${contact.name} (${contact.phoneLabel})",
+                                icon = Icons.Filled.Person
+                            ) {
+                                if (prefix == '#') {
+                                    callToConfirm = contact
+                                    dismiss()
+                                } else {
+                                    lockedPrefix = prefix
+                                    selectedContact = contact
+                                    text = TextFieldValue()
                                 }
                             }
-                            appResults.forEach { app ->
-                                SuggestionRow(text = app.label, icon = Icons.Filled.Apps) {
-                                    val launched = runCatching {
-                                        context.startActivity(
-                                            Intent()
-                                                .setComponent(ComponentName(app.packageName, app.className))
-                                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        )
-                                    }.isSuccess
-                                    if (launched) dismiss()
-                                }
+                        }
+                        appResults.forEach { app ->
+                            SuggestionRow(text = app.label, icon = Icons.Filled.Apps) {
+                                val launched = runCatching {
+                                    context.startActivity(
+                                        Intent()
+                                            .setComponent(ComponentName(app.packageName, app.className))
+                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    )
+                                }.isSuccess
+                                if (launched) dismiss()
                             }
-                            if (prefix in listOf('@', '#') && !hasContactsPermission) {
-                                SuggestionRow(text = "Allow contacts access to search people", icon = Icons.Filled.Person) {
-                                    contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-                                }
+                        }
+                        if (prefix in listOf('@', '#') && !hasContactsPermission) {
+                            SuggestionRow(text = "Allow contacts access to search people", icon = Icons.Filled.Person) {
+                                contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
                             }
                         }
                     }
                 }
 
-                if (expanded && !noteMode) {
+                if (expanded) {
                     VibeBarLegend(prefix) { key ->
                         clearCommand()
                         text = TextFieldValue(key.toString(), selection = TextRange(1))
@@ -366,72 +375,45 @@ fun VibeBar(keyboardInputEnabled: Boolean, modifier: Modifier = Modifier) {
                 }
 
                 Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(if (noteMode) Modifier.heightIn(min = 180.dp) else Modifier.heightIn(min = VIBE_BAR_MIN_HEIGHT_DP.dp)),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = VIBE_BAR_MIN_HEIGHT_DP.dp),
                     shape = RoundedCornerShape(24.dp),
                     color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 12.dp
                 ) {
-                    if (noteMode) {
-                        Box(Modifier.fillMaxWidth()) {
-                            VibeBarInputField(
-                                value = text,
-                                onValueChange = { value ->
-                                    text = value
-                                    if (value.text.isBlank() && lockedPrefix == null) expanded = false
-                                },
-                                prefix = prefix,
-                                focusRequester = focusRequester,
-                                onSubmit = { submit() },
-                                modifier = Modifier.fillMaxWidth().padding(end = 48.dp, bottom = 12.dp),
-                                maxLines = Int.MAX_VALUE
-                            )
-                            FilledIconButton(
-                                onClick = { submit() },
-                                modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = actionVisuals.color,
-                                    contentColor = LauncherWhite
-                                )
-                            ) { Icon(actionVisuals.icon, "Run command") }
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        selectedContact?.let { contact ->
+                            CommandChip(
+                                "${contact.name} (${contact.phoneLabel})",
+                                actionVisuals.color,
+                                LauncherWhite
+                            ) { clearCommand() }
                         }
-                    } else {
-                        Row(
-                            Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            selectedContact?.let { contact ->
-                                CommandChip(
-                                    "${contact.name} (${contact.phoneLabel})",
-                                    actionVisuals.color,
-                                    LauncherWhite
-                                ) { clearCommand() }
-                            }
-                            VibeBarInputField(
-                                value = text,
-                                onValueChange = { value ->
-                                    text = value
-                                    if (lockedPrefix == null && value.text.firstOrNull() != prefix) {
-                                        selectedContact = null
-                                    }
-                                    if (value.text.isBlank() && lockedPrefix == null && selectedContact == null) {
-                                        expanded = false
-                                    }
-                                },
-                                prefix = prefix,
-                                focusRequester = focusRequester,
-                                onSubmit = { submit() },
-                                modifier = Modifier.weight(1f)
+                        VibeBarInputField(
+                            value = text,
+                            onValueChange = { value ->
+                                text = value
+                                if (lockedPrefix == null && value.text.firstOrNull() != prefix) {
+                                    selectedContact = null
+                                }
+                                if (value.text.isBlank() && lockedPrefix == null && selectedContact == null) {
+                                    expanded = false
+                                }
+                            },
+                            prefix = prefix,
+                            focusRequester = focusRequester,
+                            onSubmit = { submit() },
+                            modifier = Modifier.weight(1f)
+                        )
+                        FilledIconButton(
+                            onClick = { submit() },
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = actionVisuals.color,
+                                contentColor = LauncherWhite
                             )
-                            FilledIconButton(
-                                onClick = { submit() },
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = actionVisuals.color,
-                                    contentColor = LauncherWhite
-                                )
-                            ) { Icon(actionVisuals.icon, "Run command") }
-                        }
+                        ) { Icon(actionVisuals.icon, "Run command") }
                     }
                 }
             }
