@@ -94,7 +94,7 @@ fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "Card Color", color = LauncherWhite, style = MaterialTheme.typography.bodyLarge)
+            Text(text = "Card & Icon Color", color = LauncherWhite, style = MaterialTheme.typography.bodyLarge)
             Icon(imageVector = Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = LauncherMutedGray)
         }
 

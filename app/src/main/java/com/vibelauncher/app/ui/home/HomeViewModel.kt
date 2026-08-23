@@ -23,6 +23,7 @@ import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.model.TileTarget
 import com.vibelauncher.app.model.TodoItem
 import com.vibelauncher.app.ui.theme.LauncherCard
+import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.util.IntentDefaults
 import com.vibelauncher.app.util.PermissionUtils
 import androidx.compose.ui.graphics.toArgb
@@ -70,6 +71,8 @@ class HomeViewModel(
     private val applyIconThemeToHomeTiles = MutableStateFlow(false)
     private val eventCardColorArgb = MutableStateFlow(LauncherCard.toArgb())
     private val eventCardColorEnabled = MutableStateFlow(false)
+    private val iconAccentColorArgb = MutableStateFlow(LauncherRed.toArgb())
+    private val iconAccentColorEnabled = MutableStateFlow(false)
     private val tileBorderEnabled = MutableStateFlow(false)
     private val tileBorderSizeStep = MutableStateFlow(5)
     private val vibeBarEnabled = MutableStateFlow(true)
@@ -119,6 +122,12 @@ class HomeViewModel(
             settingsRepository.eventCardColorEnabled.collectLatest { eventCardColorEnabled.value = it }
         }
         viewModelScope.launch {
+            settingsRepository.iconAccentColor.collectLatest { iconAccentColorArgb.value = it }
+        }
+        viewModelScope.launch {
+            settingsRepository.iconAccentColorEnabled.collectLatest { iconAccentColorEnabled.value = it }
+        }
+        viewModelScope.launch {
             settingsRepository.tileBorderEnabled.collectLatest { tileBorderEnabled.value = it }
         }
         viewModelScope.launch {
@@ -153,17 +162,20 @@ class HomeViewModel(
         tileBorderEnabled,
         tileBorderSizeStep,
         vibeBarEnabled,
-        todos
+        todos,
+        iconAccentColorArgb,
+        iconAccentColorEnabled
     ) { values ->
         val events = values[1] as DayEvents
         @Suppress("UNCHECKED_CAST")
         val notificationPackages = values[12] as Set<String>
         @Suppress("UNCHECKED_CAST")
         val todoItems = values[20] as List<TodoItem>
-        // To-dos are a running list, not tied to a calendar day, so they show in the
-        // Tasks bar every day - unlike allDayEvents, which is filtered to selectedDayOffset
-        // by CalendarRepository. Negative ids keep them out of the way of real event ids.
-        val tasks = events.allDayEvents + todoItems.map {
+        // The Tasks bar is local to-dos only now - real calendar all-day events render in
+        // the top (calendar) card instead (see HomeScreen). To-dos are a running list, not
+        // tied to a calendar day, so they show every day, regardless of selectedDayOffset.
+        // Negative ids keep them out of the way of real event ids.
+        val tasks = todoItems.map {
             CalendarEvent(id = -it.id, title = it.text, startMillis = it.createdAt, endMillis = it.createdAt, isAllDay = true)
         }
         HomeUiState(
@@ -188,7 +200,9 @@ class HomeViewModel(
             eventCardColorEnabled = values[16] as Boolean,
             tileBorderEnabled = values[17] as Boolean,
             tileBorderSizeStep = values[18] as Int,
-            vibeBarEnabled = values[19] as Boolean
+            vibeBarEnabled = values[19] as Boolean,
+            iconAccentColorArgb = values[21] as Int,
+            iconAccentColorEnabled = values[22] as Boolean
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

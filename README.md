@@ -17,16 +17,16 @@ This is a first prototype, built for and tested on a physical device (Unihertz T
 ## Features
 
 - **Fixed header** - day of week, date, and weather (by zip code), pinned in place and never scrolling.
-- **Calendar & Tasks** - today's next event and task shown collapsed; tap to expand in place into a scrollable list of everything else that day, starting from whichever event you're currently on.
+- **Calendar & To-Do cards** - a top card for real calendar events (all-day events like bill reminders shown first, then the day's timed events), and a separate bottom card for local to-dos added via Vibe Bar's `-` (only appears when at least one exists). Both collapse to a single-item preview and expand in place into a scrollable list.
 - **8 customizable tiles** - reassign any of the 8 home-screen slots to any installed app, either by long-pressing the tile directly or from a dedicated "Home Screen Apps" screen in settings.
 - **Icon borders** - an "Icon borders" toggle in Launcher Settings draws a thin white rounded-square outline around each home-screen tile, sized to the tile's full column width. Off by default.
 - **Notification badges** - a small red badge appears on any tile whose app has an active notification (unread texts, missed calls, etc.), via Android's notification listener API.
 - **App drawer** - swipe up (or tap the drag handle) to open a full searchable list of installed apps, with a slide-up/slide-down animation and swipe-down-to-dismiss.
 - **Icon theming** - apply any installed icon pack to the app drawer, with an option to also apply it to the home-screen tiles.
-- **Card Color** - a full HSV color wheel plus brightness and opacity sliders to customize the Calendar/Task card color, including a "Glass" mode that turns the cards transparent so the wallpaper shows through clearly.
+- **Card & Icon Color** - a full HSV color wheel plus brightness and opacity sliders to customize the Calendar/To-Do card color, including a "Glass" mode that turns the cards transparent so the wallpaper shows through clearly. A second, independent color wheel (no opacity - icons stay fully opaque) recolors the calendar icon, the to-do icon, the badge circle, and the weather sun icon together.
 - **Real wallpaper support** - the home screen renders directly over your system wallpaper rather than a solid background.
 - **Vibe Bar** - a command input that's invisible until you start typing on a hardware keyboard, then slides up from the bottom of the screen (on by default, toggle it off in Launcher Settings); delete back to empty and it slides away again. The first character routes to a quick action: `@` texts a contact, `#` calls a contact, `-` adds a to-do, `/` opens a scratch note, `+` adds a calendar event, `?` searches and launches an installed app, and plain text runs a web search. `@`/`#` execute directly (no dialer/messaging app opens); `-` saves into Vibe Launcher's own local To-Do store; `+` still hands off to the Calendar app.
-- **To-Do** - the home screen's built-in "To-Do" tile opens Vibe Launcher's own local list (add via Vibe Bar's `-`, edit or delete any entry with the pen/trash icons). Also shows in the Tasks bar alongside real calendar all-day events.
+- **To-Do** - the home screen's built-in "To-Do" tile opens Vibe Launcher's own local list (add via Vibe Bar's `-`, edit or delete any entry with the pen/trash icons). Also shows in its own bottom card on the home screen, separate from real calendar events.
 - **Note** - `/` in Vibe Bar or the home screen's "Note" tile opens a half-page scratchpad above the keyboard - type something, then Share it (the real Android share sheet: recent contacts plus Messages/Gmail/Quick Share/etc.) or Copy it. Nothing is ever saved - closing the sheet, or deleting the draft, clears it for good.
 
 ## Tech stack
@@ -60,6 +60,10 @@ Early prototype - built iteratively through hands-on testing on a real device. E
 
 ## Changelog
 
+- **1.0.11** - Split the home screen's calendar/task cards apart, gave to-dos their own icon, and added an icon color wheel to Settings:
+  - **Top card is now calendar-only, bottom card is now to-do-only.** Previously the bottom "Tasks" card mixed real calendar all-day events (e.g. "Cox due $52") together with local to-dos added via Vibe Bar's `-`, which made it unclear which was which. All-day events now render in the top card, listed first (ahead of the day's timed events); the bottom card shows only local to-dos, and doesn't appear at all unless at least one exists (`HomeViewModel.kt`, `HomeScreen.kt`).
+  - **To-do card gets its own icon** - `EventCard`/`ExpandableEventSection` now take an `icon` parameter; the to-do card uses the same checklist glyph as Vibe Bar's `-` action instead of a calendar icon.
+  - **New "Icon Color" wheel** in Settings ("Card Color" renamed to "Card & Icon Color") - a second HSV wheel + brightness slider, independent of and off by default like the existing card-background color, that recolors the calendar icon, the to-do icon, the "5m"/"0m"/"•" badge circle, and the weather sun icon together (`SettingsRepository.kt`, `CardColorScreen.kt`, `DateWeatherHeader.kt`).
 - **1.0.10** - Reworked `/` from a saved note into an ephemeral scratchpad, and fixed the software keyboard hiding its buttons:
   - **`/` no longer saves anything.** Removed the persisted Notes feature entirely (`NotesRepository`, the Notes list screen, `NoteItem` - all deleted). Typing `/` in Vibe Bar (or tapping the home screen's "Note" tile) now opens `NoteBubble`, a half-page sheet with no repository behind it at all - the draft lives only in memory and is gone the moment the sheet closes.
   - Multi-line text field where Enter inserts a newline (never submits). A trash icon confirms before clearing ("This draft will permanently be cleared" / Cancel / Delete). Copy puts the text on the clipboard; Share opens Android's native share sheet (`Intent.ACTION_SEND` + chooser) with the recent-contacts row and the full app list (Messages, Gmail, Quick Share, Chrome, etc.) - both stay available after use so the same note can go to more than one place.

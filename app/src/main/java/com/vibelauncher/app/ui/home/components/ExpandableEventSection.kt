@@ -3,12 +3,16 @@ package com.vibelauncher.app.ui.home.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.vibelauncher.app.data.calendar.CalendarEvent
 import com.vibelauncher.app.ui.theme.LauncherCard
+import com.vibelauncher.app.ui.theme.LauncherRed
 
 /**
  * Collapsed: just the single most relevant event. Expanded: every event for the day,
@@ -25,6 +29,8 @@ fun ExpandableEventSection(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
     cardColor: Color = LauncherCard,
+    icon: ImageVector = Icons.Filled.Event,
+    iconTint: Color = LauncherRed,
     badgeFor: (CalendarEvent) -> String? = { null }
 ) {
     if (collapsedEvent == null) return
@@ -36,7 +42,9 @@ fun ExpandableEventSection(
             modifier = modifier.fillMaxWidth(),
             backgroundColor = cardColor,
             onClick = onToggle,
-            badgeOverride = badgeFor(collapsedEvent)
+            badgeOverride = badgeFor(collapsedEvent),
+            icon = icon,
+            iconTint = iconTint
         )
     } else {
         Column(
@@ -50,7 +58,9 @@ fun ExpandableEventSection(
                     modifier = Modifier.fillMaxWidth(),
                     backgroundColor = cardColor,
                     onClick = onToggle,
-                    badgeOverride = badgeFor(event)
+                    badgeOverride = badgeFor(event),
+                    icon = icon,
+                    iconTint = iconTint
                 )
             }
         }

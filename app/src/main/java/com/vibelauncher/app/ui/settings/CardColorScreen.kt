@@ -6,11 +6,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -68,14 +72,14 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
                 Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back", tint = LauncherWhite)
             }
             Text(
-                text = "Card Color",
+                text = "Card & Icon Color",
                 color = LauncherWhite,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 8.dp)
             )
         }
         Text(
-            text = "Applies to the Calendar and Task cards on the home screen.",
+            text = "Applies to the Calendar and To-Do cards on the home screen.",
             color = LauncherMutedGray,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp)
@@ -129,6 +133,71 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
             value = uiState.opacity,
             onValueChange = viewModel::setOpacity,
             onGlassPreset = viewModel::applyGlassPreset,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+        )
+
+        Text(
+            text = "Icon Color",
+            color = LauncherWhite,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(start = 24.dp, top = 24.dp)
+        )
+        Text(
+            text = "Applies to the calendar and to-do icons, the badge circle, and the weather sun icon.",
+            color = LauncherMutedGray,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 16.dp)
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "Custom color", color = LauncherWhite, style = MaterialTheme.typography.bodyLarge)
+            Switch(
+                checked = uiState.iconEnabled,
+                onCheckedChange = viewModel::setIconEnabled,
+                colors = SwitchDefaults.colors(checkedTrackColor = LauncherRed)
+            )
+        }
+        Text(
+            text = if (uiState.iconEnabled) "On - icons use the color below." else "Off - icons stay the default red.",
+            color = LauncherMutedGray,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp)
+        )
+
+        val iconPreviewColor = if (uiState.iconEnabled) {
+            Color.hsv(uiState.iconHue, uiState.iconSaturation, uiState.iconBrightness)
+        } else {
+            LauncherRed
+        }
+        Row(
+            modifier = Modifier.padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Event, contentDescription = null, tint = iconPreviewColor, modifier = Modifier.size(28.dp))
+            Icon(Icons.Filled.Checklist, contentDescription = null, tint = iconPreviewColor, modifier = Modifier.size(28.dp))
+            Icon(Icons.Filled.WbSunny, contentDescription = null, tint = iconPreviewColor, modifier = Modifier.size(28.dp))
+        }
+
+        ColorWheel(
+            hue = uiState.iconHue,
+            saturation = uiState.iconSaturation,
+            onColorChange = viewModel::setIconHueSaturation,
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .widthIn(max = 240.dp)
+                .padding(vertical = 24.dp)
+        )
+
+        BrightnessSlider(
+            value = uiState.iconBrightness,
+            onValueChange = viewModel::setIconBrightness,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
         )
     }

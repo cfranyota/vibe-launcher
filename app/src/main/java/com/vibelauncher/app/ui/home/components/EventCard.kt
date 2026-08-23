@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vibelauncher.app.data.calendar.CalendarEvent
@@ -44,7 +45,9 @@ fun EventCard(
     modifier: Modifier = Modifier,
     backgroundColor: Color = LauncherCard,
     onClick: (() -> Unit)? = null,
-    badgeOverride: String? = null
+    badgeOverride: String? = null,
+    icon: ImageVector = Icons.Filled.Event,
+    iconTint: Color = LauncherRed
 ) {
     val timeText = remember(event) {
         if (event.isAllDay) "all day" else SimpleDateFormat("h:mm a", Locale.getDefault())
@@ -64,9 +67,9 @@ fun EventCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Filled.Event,
+                imageVector = icon,
                 contentDescription = null,
-                tint = LauncherRed,
+                tint = iconTint,
                 modifier = Modifier.padding(end = 12.dp)
             )
             Column {
@@ -83,7 +86,7 @@ fun EventCard(
             modifier = Modifier
                 .defaultMinSize(minWidth = 28.dp, minHeight = 28.dp)
                 .clip(CircleShape)
-                .background(LauncherRed)
+                .background(iconTint)
                 .padding(horizontal = 6.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {

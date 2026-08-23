@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -26,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.vibelauncher.app.ui.theme.LauncherCard
+import com.vibelauncher.app.ui.theme.LauncherRed
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -169,6 +172,7 @@ fun HomeScreen(
                 weather = uiState.weather,
                 weatherLoading = uiState.weatherLoading,
                 onWeatherClick = { showZipDialog = true },
+                sunTint = if (uiState.iconAccentColorEnabled) Color(uiState.iconAccentColorArgb) else LauncherRed,
                 modifier = Modifier.onGloballyPositioned { headerHeightPx = it.size.height }
             )
 
@@ -182,9 +186,10 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                val currentEvent = collapsedTimedEvent(uiState.timedEvents, uiState.selectedDayOffset, uiState.nowMillis)
+                val currentTimedEvent = collapsedTimedEvent(uiState.timedEvents, uiState.selectedDayOffset, uiState.nowMillis)
+                val collapsedEvent = uiState.allDayEvents.firstOrNull() ?: currentTimedEvent
                 val bothBarsShowing = uiState.hasCalendarPermission &&
-                    currentEvent != null &&
+                    collapsedEvent != null &&
                     uiState.tasks.firstOrNull() != null
 
                 // A plain (non-weighted, non-scrolling) wrapper around the same content, so
@@ -212,31 +217,32 @@ fun HomeScreen(
                     }
 
                     val cardColor = if (uiState.eventCardColorEnabled) Color(uiState.eventCardColorArgb) else LauncherCard
+                    val iconTint = if (uiState.iconAccentColorEnabled) Color(uiState.iconAccentColorArgb) else LauncherRed
 
-                    // Events (timed) genuinely need calendar data, so that bar stays gated
-                    // behind calendar permission. Tasks doesn't - it's allDayEvents plus
-                    // local to-dos, and to-dos need no permission at all - so it renders
-                    // regardless, with calendar all-day events simply layering in once
-                    // permission is granted.
+                    // Top card is 100% real calendar data (all-day events first, then timed
+                    // events), so it stays fully gated behind calendar permission. Bottom
+                    // card is 100% local to-dos, which never need calendar permission, so it
+                    // renders independently of the top card's permission state.
                     if (!uiState.hasCalendarPermission) {
                         CalendarPermissionCard(
                             onClick = { permissionLauncher.launch(android.Manifest.permission.READ_CALENDAR) },
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                         )
                     } else {
-                        val expandedTimedEvents = if (currentEvent == null) {
+                        val expandedTimedEvents = if (currentTimedEvent == null) {
                             uiState.timedEvents
                         } else {
-                            uiState.timedEvents.dropWhile { it.id != currentEvent.id }
+                            uiState.timedEvents.dropWhile { it.id != currentTimedEvent.id }
                         }
                         ExpandableEventSection(
-                            events = expandedTimedEvents,
-                            collapsedEvent = currentEvent,
+                            events = uiState.allDayEvents + expandedTimedEvents,
+                            collapsedEvent = collapsedEvent,
                             expanded = uiState.eventsExpanded,
                             nowMillis = uiState.nowMillis,
                             onToggle = viewModel::toggleEventsExpanded,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                            cardColor = cardColor
+                            cardColor = cardColor,
+                            iconTint = iconTint
                         )
                     }
                     ExpandableEventSection(
@@ -247,7 +253,9 @@ fun HomeScreen(
                         onToggle = viewModel::toggleTasksExpanded,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
                         cardColor = cardColor,
-                        badgeFor = { event -> if (event.id < 0) "•" else null }
+                        icon = Icons.Filled.Checklist,
+                        iconTint = iconTint,
+                        badgeFor = { "•" }
                     )
                 }
             }

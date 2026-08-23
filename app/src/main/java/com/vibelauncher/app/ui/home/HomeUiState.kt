@@ -4,6 +4,7 @@ import com.vibelauncher.app.data.calendar.CalendarEvent
 import com.vibelauncher.app.data.weather.WeatherInfo
 import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.ui.theme.LauncherCard
+import com.vibelauncher.app.ui.theme.LauncherRed
 import androidx.compose.ui.graphics.toArgb
 
 data class HomeUiState(
@@ -12,8 +13,8 @@ data class HomeUiState(
     val selectedDayOffset: Int = 0,
     val timedEvents: List<CalendarEvent> = emptyList(),
     val allDayEvents: List<CalendarEvent> = emptyList(),
-    /** allDayEvents plus local to-dos (as synthetic all-day entries) - what the Tasks
-     *  bar actually renders, so local to-dos show even without calendar permission. */
+    /** Local to-dos only (as synthetic all-day entries) - what the bottom card renders.
+     *  Real calendar all-day events render in the top card instead (see allDayEvents). */
     val tasks: List<CalendarEvent> = emptyList(),
     val eventsExpanded: Boolean = false,
     val tasksExpanded: Boolean = false,
@@ -30,5 +31,7 @@ data class HomeUiState(
     val eventCardColorEnabled: Boolean = false,
     val tileBorderEnabled: Boolean = false,
     val tileBorderSizeStep: Int = 5,
-    val vibeBarEnabled: Boolean = true
+    val vibeBarEnabled: Boolean = true,
+    val iconAccentColorArgb: Int = LauncherRed.toArgb(),
+    val iconAccentColorEnabled: Boolean = false
 )

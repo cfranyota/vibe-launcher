@@ -36,6 +36,22 @@ class CardColorViewModel(private val settingsRepository: SettingsRepository) : V
                 _uiState.value = _uiState.value.copy(enabled = enabled)
             }
         }
+        viewModelScope.launch {
+            settingsRepository.iconAccentColor.collectLatest { argb ->
+                val hsv = FloatArray(3)
+                android.graphics.Color.colorToHSV(argb, hsv)
+                _uiState.value = _uiState.value.copy(
+                    iconHue = hsv[0],
+                    iconSaturation = hsv[1],
+                    iconBrightness = hsv[2]
+                )
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.iconAccentColorEnabled.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(iconEnabled = enabled)
+            }
+        }
     }
 
     fun setEnabled(enabled: Boolean) {
@@ -63,6 +79,26 @@ class CardColorViewModel(private val settingsRepository: SettingsRepository) : V
         _uiState.value = newState
         val argb = Color.hsv(newState.hue, newState.saturation, newState.brightness, newState.opacity).toArgb()
         viewModelScope.launch { settingsRepository.setEventCardColor(argb) }
+    }
+
+    fun setIconEnabled(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(iconEnabled = enabled)
+        viewModelScope.launch { settingsRepository.setIconAccentColorEnabled(enabled) }
+    }
+
+    fun setIconHueSaturation(hue: Float, saturation: Float) {
+        persistIcon(_uiState.value.copy(iconHue = hue, iconSaturation = saturation))
+    }
+
+    fun setIconBrightness(value: Float) {
+        persistIcon(_uiState.value.copy(iconBrightness = value))
+    }
+
+    private fun persistIcon(newState: CardColorUiState) {
+        _uiState.value = newState
+        // Icons stay fully opaque - no glass/opacity mode for them like the card background has.
+        val argb = Color.hsv(newState.iconHue, newState.iconSaturation, newState.iconBrightness, 1f).toArgb()
+        viewModelScope.launch { settingsRepository.setIconAccentColor(argb) }
     }
 
     class Factory(private val settingsRepository: SettingsRepository) : ViewModelProvider.Factory {

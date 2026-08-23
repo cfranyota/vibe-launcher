@@ -17,11 +17,17 @@ private val EVENT_CARD_COLOR_ENABLED_KEY = booleanPreferencesKey("event_card_col
 private val TILE_BORDER_ENABLED_KEY = booleanPreferencesKey("tile_border_enabled")
 private val TILE_BORDER_SIZE_STEP_KEY = intPreferencesKey("tile_border_size_step")
 private val VIBE_BAR_ENABLED_KEY = booleanPreferencesKey("vibe_bar_enabled")
+private val ICON_ACCENT_COLOR_KEY = intPreferencesKey("icon_accent_color")
+private val ICON_ACCENT_COLOR_ENABLED_KEY = booleanPreferencesKey("icon_accent_color_enabled")
 
 /** Default event-card color, matching `LauncherCard` in ui/theme/Color.kt (0xFF1A1A1A) -
  *  duplicated as a raw constant here so this data-layer file doesn't need to depend on
  *  the UI theme package. */
 private const val DEFAULT_EVENT_CARD_COLOR = 0xFF1A1A1A.toInt()
+
+/** Default icon accent color, matching `LauncherRed` in ui/theme/Color.kt (0xFFEF4444) -
+ *  same reasoning as DEFAULT_EVENT_CARD_COLOR above. */
+private const val DEFAULT_ICON_ACCENT_COLOR = 0xFFEF4444.toInt()
 
 /** Default border-size step on the 1-10 scale (see TileView.kt's resolveTileSizeDp) - the
  *  midpoint, not the max. */
@@ -86,5 +92,20 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setVibeBarEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[VIBE_BAR_ENABLED_KEY] = enabled }
+    }
+
+    /** Packed ARGB for the calendar/checklist icons, the "5m"/"0m"/"•" badge circle, and
+     *  the weather sun icon - one color for all of them together. */
+    val iconAccentColor = context.settingsDataStore.data.map { it[ICON_ACCENT_COLOR_KEY] ?: DEFAULT_ICON_ACCENT_COLOR }
+
+    suspend fun setIconAccentColor(argb: Int) {
+        context.settingsDataStore.edit { it[ICON_ACCENT_COLOR_KEY] = argb }
+    }
+
+    /** Off by default - icons stay their fixed red until the user opts in. */
+    val iconAccentColorEnabled = context.settingsDataStore.data.map { it[ICON_ACCENT_COLOR_ENABLED_KEY] ?: false }
+
+    suspend fun setIconAccentColorEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[ICON_ACCENT_COLOR_ENABLED_KEY] = enabled }
     }
 }

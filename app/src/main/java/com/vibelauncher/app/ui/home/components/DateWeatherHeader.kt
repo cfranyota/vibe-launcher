@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.vibelauncher.app.data.weather.WeatherInfo
 import com.vibelauncher.app.ui.theme.DateWeatherTextStyle
@@ -36,7 +37,8 @@ fun DateWeatherHeader(
     weather: WeatherInfo?,
     weatherLoading: Boolean,
     onWeatherClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sunTint: Color = LauncherRed
 ) {
     val date = remember(selectedDayOffset) { LocalDate.now().plusDays(selectedDayOffset.toLong()) }
     val dayOfWeekText = remember(date) {
@@ -75,7 +77,7 @@ fun DateWeatherHeader(
                     Icon(
                         imageVector = Icons.Filled.WbSunny,
                         contentDescription = null,
-                        tint = LauncherRed,
+                        tint = sunTint,
                         modifier = Modifier.padding(end = 6.dp)
                     )
                     Text(
