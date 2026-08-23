@@ -2,6 +2,12 @@
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Used for Vibe Bar's '@'/'#' contact search-as-you-type. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Vibe Bar sends '@' texts and places '#' calls directly, without opening
+         another app, so these are requested at runtime the first time each is used. -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
 
     <!-- Without this, package-visibility rules (Android 11+) hide most installed apps
          from queryIntentActivities, so the app drawer/picker only shows a handful. -->

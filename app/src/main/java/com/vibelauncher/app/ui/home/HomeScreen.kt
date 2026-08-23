@@ -39,6 +39,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibelauncher.app.data.apps.AppInfo
 import com.vibelauncher.app.data.calendar.CalendarEvent
+import com.vibelauncher.app.model.BuiltInAction
 import com.vibelauncher.app.model.TileTarget
 import com.vibelauncher.app.ui.home.components.CalendarPermissionCard
 import com.vibelauncher.app.ui.home.components.DateWeatherHeader
@@ -49,6 +50,7 @@ import com.vibelauncher.app.ui.home.components.MIN_TILE_SIZE_DP
 import com.vibelauncher.app.ui.home.components.NotificationAccessCard
 import com.vibelauncher.app.ui.home.components.PageIndicator
 import com.vibelauncher.app.ui.home.components.TileGrid
+import com.vibelauncher.app.ui.home.components.VibeBar
 import com.vibelauncher.app.ui.home.components.ZipCodeDialog
 import com.vibelauncher.app.ui.picker.AppPickerDialog
 import com.vibelauncher.app.ui.picker.AppPickerViewModel
@@ -83,7 +85,9 @@ private val FALLBACK_TWO_BAR_CONTENT_DP = 160.dp
 fun HomeScreen(
     viewModel: HomeViewModel,
     pickerViewModelFactory: AppPickerViewModel.Factory,
-    onOpenDrawer: () -> Unit
+    onOpenDrawer: () -> Unit,
+    onOpenNotes: () -> Unit,
+    onOpenTodos: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showZipDialog by remember { mutableStateOf(false) }
@@ -180,7 +184,7 @@ fun HomeScreen(
                 val currentEvent = collapsedTimedEvent(uiState.timedEvents, uiState.selectedDayOffset, uiState.nowMillis)
                 val bothBarsShowing = uiState.hasCalendarPermission &&
                     currentEvent != null &&
-                    uiState.allDayEvents.firstOrNull() != null
+                    uiState.tasks.firstOrNull() != null
 
                 // A plain (non-weighted, non-scrolling) wrapper around the same content, so
                 // its measured height reflects the content's own natural size rather than
@@ -206,13 +210,19 @@ fun HomeScreen(
                         )
                     }
 
+                    val cardColor = if (uiState.eventCardColorEnabled) Color(uiState.eventCardColorArgb) else LauncherCard
+
+                    // Events (timed) genuinely need calendar data, so that bar stays gated
+                    // behind calendar permission. Tasks doesn't - it's allDayEvents plus
+                    // local to-dos, and to-dos need no permission at all - so it renders
+                    // regardless, with calendar all-day events simply layering in once
+                    // permission is granted.
                     if (!uiState.hasCalendarPermission) {
                         CalendarPermissionCard(
                             onClick = { permissionLauncher.launch(android.Manifest.permission.READ_CALENDAR) },
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                         )
                     } else {
-                        val cardColor = if (uiState.eventCardColorEnabled) Color(uiState.eventCardColorArgb) else LauncherCard
                         val expandedTimedEvents = if (currentEvent == null) {
                             uiState.timedEvents
                         } else {
@@ -227,16 +237,17 @@ fun HomeScreen(
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
                             cardColor = cardColor
                         )
-                        ExpandableEventSection(
-                            events = uiState.allDayEvents,
-                            collapsedEvent = uiState.allDayEvents.firstOrNull(),
-                            expanded = uiState.tasksExpanded,
-                            nowMillis = uiState.nowMillis,
-                            onToggle = viewModel::toggleTasksExpanded,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                            cardColor = cardColor
-                        )
                     }
+                    ExpandableEventSection(
+                        events = uiState.tasks,
+                        collapsedEvent = uiState.tasks.firstOrNull(),
+                        expanded = uiState.tasksExpanded,
+                        nowMillis = uiState.nowMillis,
+                        onToggle = viewModel::toggleTasksExpanded,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                        cardColor = cardColor,
+                        badgeFor = { event -> if (event.id < 0) "•" else null }
+                    )
                 }
             }
 
@@ -254,7 +265,16 @@ fun HomeScreen(
             ) {
                 TileGrid(
                     tiles = uiState.tiles,
-                    onTileClick = viewModel::onTileClick,
+                    onTileClick = { tile ->
+                        // The default Note/To-Do tiles have no external app to hand off
+                        // to (see IntentDefaults.intentFor's NOTE/TODO -> null branches) -
+                        // open Vibe Launcher's own local viewers for them instead.
+                        when ((tile.target as? TileTarget.BuiltIn)?.kind) {
+                            BuiltInAction.NOTE -> onOpenNotes()
+                            BuiltInAction.TODO -> onOpenTodos()
+                            else -> viewModel.onTileClick(tile)
+                        }
+                    },
                     onTileLongPress = viewModel::onTileLongPress,
                     hasNotification = { tile ->
                         uiState.hasNotificationAccess &&
@@ -267,6 +287,12 @@ fun HomeScreen(
                 )
                 DrawerHandle(onOpenDrawer = guardedOnOpenDrawer)
             }
+        }
+
+        // Declared last (on top) so its scrim/expanded content draws over everything else
+        // above. Invisible and inert when collapsed - see VibeBar's own doc comment.
+        if (uiState.vibeBarEnabled) {
+            VibeBar(keyboardInputEnabled = uiState.pickerForSlot == null && !showZipDialog)
         }
     }
 

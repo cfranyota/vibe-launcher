@@ -41,6 +41,11 @@ class SettingsViewModel(
                 _uiState.value = _uiState.value.copy(tileBorderSizeStep = step)
             }
         }
+        viewModelScope.launch {
+            settingsRepository.vibeBarEnabled.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(vibeBarEnabled = enabled)
+            }
+        }
     }
 
     fun selectIconTheme(packageName: String) {
@@ -57,6 +62,10 @@ class SettingsViewModel(
 
     fun setTileBorderSizeStep(step: Int) {
         viewModelScope.launch { settingsRepository.setTileBorderSizeStep(step) }
+    }
+
+    fun setVibeBarEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setVibeBarEnabled(enabled) }
     }
 
     class Factory(

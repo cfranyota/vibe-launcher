@@ -1,5 +1,6 @@
 package com.vibelauncher.app.util
 
+import android.app.SearchManager
 import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
@@ -10,6 +11,7 @@ import android.provider.CalendarContract
 import android.provider.MediaStore
 import android.provider.Telephony
 import android.telecom.TelecomManager
+import android.telephony.SmsManager
 import com.vibelauncher.app.model.BuiltInAction
 import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.model.TileTarget
@@ -105,5 +107,51 @@ object IntentDefaults {
             BuiltInAction.NOTE, BuiltInAction.TODO -> null
             else -> intentFor(target.kind, context)?.resolveActivity(context.packageManager)
         }
+    }
+
+    // ─── Vibe Bar actions ───────────────────────────────────────────────────────
+    // '-' (to-do) and '/' (note) save locally (see NotesRepository/TodoRepository) and
+    // never reach here. '@' and '#' execute directly (SmsManager/TelecomManager) rather
+    // than handing off to another app. '+' still hands off to the Calendar app - there's
+    // a real system calendar for events to live in, unlike notes/to-dos. Every one of
+    // these is guarded - this app is the Home launcher, so an uncaught exception from
+    // any of these would crash the whole home screen.
+
+    private fun start(context: Context, intent: Intent): Boolean {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(intent) }.isSuccess
+    }
+
+    /** '+' - opens the calendar app's own add-event form pre-filled with the title. */
+    fun insertCalendarEvent(context: Context, title: String, allDay: Boolean): Boolean {
+        val intent = Intent(Intent.ACTION_INSERT)
+            .setData(CalendarContract.Events.CONTENT_URI)
+            .putExtra(CalendarContract.Events.TITLE, title)
+            .putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, allDay)
+        return start(context, intent)
+    }
+
+    /** '#' - places the call directly via TelecomManager (requires CALL_PHONE, checked/
+     *  requested by the caller before this is invoked). */
+    fun placeCallDirect(context: Context, phone: String): Boolean {
+        val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return false
+        return runCatching { telecomManager.placeCall(Uri.parse("tel:" + Uri.encode(phone)), null) }.isSuccess
+    }
+
+    /** '@' - sends the SMS directly via SmsManager (requires SEND_SMS, checked/requested
+     *  by the caller before this is invoked). getDefault(), not the API 31+
+     *  getSystemService(SmsManager::class.java) overload, since minSdk is 26. */
+    fun sendSmsDirect(context: Context, phone: String, body: String): Boolean =
+        runCatching { SmsManager.getDefault().sendTextMessage(phone, null, body, null, null) }.isSuccess
+
+    /** No prefix - runs a plain web search. Most devices resolve ACTION_WEB_SEARCH via
+     *  their default search app; where nothing does, fall back to a browser search URL. */
+    fun webSearch(context: Context, query: String): Boolean {
+        val searchIntent = Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, query)
+        if (searchIntent.resolveActivity(context.packageManager) != null) {
+            return start(context, searchIntent)
+        }
+        val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(query)))
+        return start(context, fallback)
     }
 }

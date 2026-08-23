@@ -24,7 +24,8 @@ fun ExpandableEventSection(
     nowMillis: Long,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
-    cardColor: Color = LauncherCard
+    cardColor: Color = LauncherCard,
+    badgeFor: (CalendarEvent) -> String? = { null }
 ) {
     if (collapsedEvent == null) return
 
@@ -34,7 +35,8 @@ fun ExpandableEventSection(
             nowMillis = nowMillis,
             modifier = modifier.fillMaxWidth(),
             backgroundColor = cardColor,
-            onClick = onToggle
+            onClick = onToggle,
+            badgeOverride = badgeFor(collapsedEvent)
         )
     } else {
         Column(
@@ -47,7 +49,8 @@ fun ExpandableEventSection(
                     nowMillis = nowMillis,
                     modifier = Modifier.fillMaxWidth(),
                     backgroundColor = cardColor,
-                    onClick = onToggle
+                    onClick = onToggle,
+                    badgeOverride = badgeFor(event)
                 )
             }
         }

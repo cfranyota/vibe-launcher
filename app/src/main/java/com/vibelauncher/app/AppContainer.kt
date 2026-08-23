@@ -4,8 +4,10 @@ import android.content.Context
 import com.vibelauncher.app.data.apps.InstalledAppsRepository
 import com.vibelauncher.app.data.calendar.CalendarRepository
 import com.vibelauncher.app.data.icontheme.IconThemeRepository
+import com.vibelauncher.app.data.notes.NotesRepository
 import com.vibelauncher.app.data.settings.SettingsRepository
 import com.vibelauncher.app.data.tiles.TileRepository
+import com.vibelauncher.app.data.todos.TodoRepository
 import com.vibelauncher.app.data.weather.OpenMeteoWeatherRepository
 import com.vibelauncher.app.data.weather.WeatherRepository
 
@@ -16,4 +18,6 @@ class AppContainer(context: Context) {
     val installedAppsRepository = InstalledAppsRepository(context)
     val settingsRepository = SettingsRepository(context)
     val iconThemeRepository = IconThemeRepository(context)
+    val notesRepository = NotesRepository(context)
+    val todoRepository = TodoRepository(context)
 }

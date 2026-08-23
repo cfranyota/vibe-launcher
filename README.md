@@ -25,6 +25,8 @@ This is a first prototype, built for and tested on a physical device (Unihertz T
 - **Icon theming** - apply any installed icon pack to the app drawer, with an option to also apply it to the home-screen tiles.
 - **Card Color** - a full HSV color wheel plus brightness and opacity sliders to customize the Calendar/Task card color, including a "Glass" mode that turns the cards transparent so the wallpaper shows through clearly.
 - **Real wallpaper support** - the home screen renders directly over your system wallpaper rather than a solid background.
+- **Vibe Bar** - a command input that's invisible until you start typing on a hardware keyboard, then slides up from the bottom of the screen (on by default, toggle it off in Launcher Settings); delete back to empty and it slides away again. The first character routes to a quick action: `@` texts a contact, `#` calls a contact, `-` adds a to-do, `/` adds a note, `+` adds a calendar event, `?` searches and launches an installed app, and plain text runs a web search. `@`/`#` execute directly (no dialer/messaging app opens); `-`/`/` save into Vibe Launcher's own local Notes and To-Do stores; `+` still hands off to the Calendar app.
+- **Notes & To-Do** - the home screen's built-in "Note" and "To-Do" tiles open Vibe Launcher's own local lists (add via Vibe Bar's `/` and `-`, edit or delete any entry with the pen/trash icons). To-dos also show in the Tasks bar alongside real calendar all-day events.
 
 ## Tech stack
 
@@ -57,6 +59,14 @@ Early prototype - built iteratively through hands-on testing on a real device. E
 
 ## Changelog
 
+- **1.0.9** - Vibe Bar polish pass, all in `VibeBar.kt`/`VibeBarComponents.kt` unless noted:
+  - **Always-visible shortcuts legend** - the `HOT KEYS` reference grid (`@` Text, `#` Call, `-` To-Do, `/` Note, `+` Event, `?` App) now shows above the input every time Vibe Bar is open, not just in an empty state that could no longer actually occur once 1.0.8 made the bar hidden-until-typed (typing always arrives with a character already in it). Hidden only in `/` note mode, where the full-screen editor needs the space and the prefix is already fixed. Tap any entry to switch commands, same as before.
+  - **Reworked the six per-action accent colors** (`ui/theme/Color.kt`) - `@`/`#`/`-`/`/`/`+`/`?` each still get their own color (used consistently across the legend, the input's send button, the contact chip, and result rows), but the six were previously stock Tailwind/Bootstrap hex values used as-is; retuned into a deliberately-spaced set (teal/green/amber/plum/terracotta/slate) so `-` To-Do and `+` Event - previously two adjacent ambers/browns - now read apart at a glance, and `?` App no longer shares a hue with the app's own red accent.
+  - **Background is near-black, not pure black** (`LauncherBlack` in `Color.kt`, `#0A0A0A` instead of `#000000`) - affects Vibe Bar's dimming scrim behind the expanded bar, plus the Settings/Notes/To-Do screen backgrounds that share the same theme token.
+  - **Deleting a note or to-do is reversible** - the Notes and To-Do screens (opened from Vibe Bar's `/` and `-`, or the home screen's Note/To-Do tiles) now show a "deleted" snackbar with an Undo action instead of deleting silently and permanently; Undo restores the exact item.
+  - Tightened several off-grid paddings in the bar and its legend onto a consistent 8dp spacing rhythm.
+- **1.0.8** - Vibe Bar is now hidden until you start typing on a hardware keyboard, then slides up from the bottom (was a tap-to-expand pill before). `@`/`#` now send the text/place the call directly instead of opening another app (adds `SEND_SMS`/`CALL_PHONE` permissions). `-`/`/` now save into new local To-Do and Notes stores instead of handing off to the Calendar app / a share sheet - reachable from the existing home-screen "To-Do"/"Note" tiles, with edit and delete. To-dos also show in the Tasks bar.
+- **1.0.7** - Added Vibe Bar, a floating command input (on by default) above the tile grid: `@`/`#` text or call a contact, `-`/`+` add a to-do/event, `/` shares a note, `?` searches installed apps, plain text runs a web search. Adds a Contacts read permission, used only for the `@`/`#` search.
 - **1.0.6** - Icon border tiles are now square (not wider-than-tall) and scale to fill the full column width, matching the reference design more closely.
 - **1.0.5** - Added an "Icon borders" toggle in Launcher Settings that draws a thin white outline around each home-screen tile. Off by default.
 - **1.0.4** - Added an on/off toggle for Card Color. Off by default - cards stay the fixed default color until explicitly enabled.

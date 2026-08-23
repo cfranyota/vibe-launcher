@@ -10,15 +10,18 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.vibelauncher.app.data.calendar.CalendarEvent
 import com.vibelauncher.app.data.calendar.CalendarRepository
 import com.vibelauncher.app.data.calendar.DayEvents
 import com.vibelauncher.app.data.icontheme.IconThemeRepository
 import com.vibelauncher.app.data.notifications.NotificationBadgeRepository
 import com.vibelauncher.app.data.settings.SettingsRepository
 import com.vibelauncher.app.data.tiles.TileRepository
+import com.vibelauncher.app.data.todos.TodoRepository
 import com.vibelauncher.app.data.weather.WeatherRepository
 import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.model.TileTarget
+import com.vibelauncher.app.model.TodoItem
 import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.util.IntentDefaults
 import com.vibelauncher.app.util.PermissionUtils
@@ -42,7 +45,8 @@ class HomeViewModel(
     private val weatherRepository: WeatherRepository,
     private val tileRepository: TileRepository,
     private val settingsRepository: SettingsRepository,
-    private val iconThemeRepository: IconThemeRepository
+    private val iconThemeRepository: IconThemeRepository,
+    private val todoRepository: TodoRepository
 ) : ViewModel() {
 
     private val clockTicker = flow {
@@ -68,6 +72,8 @@ class HomeViewModel(
     private val eventCardColorEnabled = MutableStateFlow(false)
     private val tileBorderEnabled = MutableStateFlow(false)
     private val tileBorderSizeStep = MutableStateFlow(5)
+    private val vibeBarEnabled = MutableStateFlow(true)
+    private val todos = MutableStateFlow<List<TodoItem>>(emptyList())
 
     // Owned by the ViewModel (not composable `remember` state) because Navigation Compose
     // disposes and recreates HomeScreen's composition every time the app drawer is opened
@@ -118,6 +124,12 @@ class HomeViewModel(
         viewModelScope.launch {
             settingsRepository.tileBorderSizeStep.collectLatest { tileBorderSizeStep.value = it }
         }
+        viewModelScope.launch {
+            settingsRepository.vibeBarEnabled.collectLatest { vibeBarEnabled.value = it }
+        }
+        viewModelScope.launch {
+            todoRepository.todos.collectLatest { todos.value = it }
+        }
     }
 
     val uiState: StateFlow<HomeUiState> = combine(
@@ -139,15 +151,26 @@ class HomeViewModel(
         eventCardColorArgb,
         eventCardColorEnabled,
         tileBorderEnabled,
-        tileBorderSizeStep
+        tileBorderSizeStep,
+        vibeBarEnabled,
+        todos
     ) { values ->
         val events = values[1] as DayEvents
         @Suppress("UNCHECKED_CAST")
         val notificationPackages = values[12] as Set<String>
+        @Suppress("UNCHECKED_CAST")
+        val todoItems = values[20] as List<TodoItem>
+        // To-dos are a running list, not tied to a calendar day, so they show in the
+        // Tasks bar every day - unlike allDayEvents, which is filtered to selectedDayOffset
+        // by CalendarRepository. Negative ids keep them out of the way of real event ids.
+        val tasks = events.allDayEvents + todoItems.map {
+            CalendarEvent(id = -it.id, title = it.text, startMillis = it.createdAt, endMillis = it.createdAt, isAllDay = true)
+        }
         HomeUiState(
             nowMillis = values[0] as Long,
             timedEvents = events.timedEvents,
             allDayEvents = events.allDayEvents,
+            tasks = tasks,
             hasCalendarPermission = values[2] as Boolean,
             weather = values[3] as com.vibelauncher.app.data.weather.WeatherInfo?,
             tiles = values[4] as List<Tile>,
@@ -164,7 +187,8 @@ class HomeViewModel(
             eventCardColorArgb = values[15] as Int,
             eventCardColorEnabled = values[16] as Boolean,
             tileBorderEnabled = values[17] as Boolean,
-            tileBorderSizeStep = values[18] as Int
+            tileBorderSizeStep = values[18] as Int,
+            vibeBarEnabled = values[19] as Boolean
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
@@ -273,11 +297,12 @@ class HomeViewModel(
         private val weatherRepository: WeatherRepository,
         private val tileRepository: TileRepository,
         private val settingsRepository: SettingsRepository,
-        private val iconThemeRepository: IconThemeRepository
+        private val iconThemeRepository: IconThemeRepository,
+        private val todoRepository: TodoRepository
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
-            return HomeViewModel(appContext, calendarRepository, weatherRepository, tileRepository, settingsRepository, iconThemeRepository) as T
+            return HomeViewModel(appContext, calendarRepository, weatherRepository, tileRepository, settingsRepository, iconThemeRepository, todoRepository) as T
         }
     }
 }

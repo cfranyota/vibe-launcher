@@ -16,6 +16,7 @@ private val EVENT_CARD_COLOR_KEY = intPreferencesKey("event_card_color")
 private val EVENT_CARD_COLOR_ENABLED_KEY = booleanPreferencesKey("event_card_color_enabled")
 private val TILE_BORDER_ENABLED_KEY = booleanPreferencesKey("tile_border_enabled")
 private val TILE_BORDER_SIZE_STEP_KEY = intPreferencesKey("tile_border_size_step")
+private val VIBE_BAR_ENABLED_KEY = booleanPreferencesKey("vibe_bar_enabled")
 
 /** Default event-card color, matching `LauncherCard` in ui/theme/Color.kt (0xFF1A1A1A) -
  *  duplicated as a raw constant here so this data-layer file doesn't need to depend on
@@ -77,5 +78,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setTileBorderSizeStep(step: Int) {
         context.settingsDataStore.edit { it[TILE_BORDER_SIZE_STEP_KEY] = step }
+    }
+
+    /** On by default - Vibe Bar is a core interaction, not optional chrome; users who
+     *  don't want it can turn it off here. */
+    val vibeBarEnabled = context.settingsDataStore.data.map { it[VIBE_BAR_ENABLED_KEY] ?: true }
+
+    suspend fun setVibeBarEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[VIBE_BAR_ENABLED_KEY] = enabled }
     }
 }

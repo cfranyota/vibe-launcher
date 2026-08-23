@@ -43,13 +43,14 @@ fun EventCard(
     nowMillis: Long,
     modifier: Modifier = Modifier,
     backgroundColor: Color = LauncherCard,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    badgeOverride: String? = null
 ) {
     val timeText = remember(event) {
         if (event.isAllDay) "all day" else SimpleDateFormat("h:mm a", Locale.getDefault())
             .format(Date(event.startMillis)).lowercase()
     }
-    val badge = remember(event, nowMillis) { event.timeUntilLabel(nowMillis) }
+    val badge = badgeOverride ?: remember(event, nowMillis) { event.timeUntilLabel(nowMillis) }
 
     Row(
         modifier = modifier

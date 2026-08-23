@@ -101,6 +101,26 @@ fun SettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(onClick = { viewModel.setVibeBarEnabled(!uiState.vibeBarEnabled) })
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = uiState.vibeBarEnabled,
+                onCheckedChange = viewModel::setVibeBarEnabled,
+                colors = CheckboxDefaults.colors(checkedColor = LauncherRed)
+            )
+            Text(
+                text = "Vibe Bar",
+                color = LauncherWhite,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
                 .clickable(onClick = { viewModel.setTileBorderEnabled(!uiState.tileBorderEnabled) })
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically

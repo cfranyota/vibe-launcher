@@ -12,6 +12,9 @@ data class HomeUiState(
     val selectedDayOffset: Int = 0,
     val timedEvents: List<CalendarEvent> = emptyList(),
     val allDayEvents: List<CalendarEvent> = emptyList(),
+    /** allDayEvents plus local to-dos (as synthetic all-day entries) - what the Tasks
+     *  bar actually renders, so local to-dos show even without calendar permission. */
+    val tasks: List<CalendarEvent> = emptyList(),
     val eventsExpanded: Boolean = false,
     val tasksExpanded: Boolean = false,
     val hasCalendarPermission: Boolean = false,
@@ -26,5 +29,6 @@ data class HomeUiState(
     val eventCardColorArgb: Int = LauncherCard.toArgb(),
     val eventCardColorEnabled: Boolean = false,
     val tileBorderEnabled: Boolean = false,
-    val tileBorderSizeStep: Int = 5
+    val tileBorderSizeStep: Int = 5,
+    val vibeBarEnabled: Boolean = true
 )
