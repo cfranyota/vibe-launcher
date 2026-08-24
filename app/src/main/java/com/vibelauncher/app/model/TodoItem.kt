@@ -6,5 +6,7 @@ import kotlinx.serialization.Serializable
 data class TodoItem(
     val id: Long,
     val text: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val done: Boolean = false,
+    val starred: Boolean = false
 )

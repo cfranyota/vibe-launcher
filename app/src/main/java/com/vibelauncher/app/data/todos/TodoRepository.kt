@@ -37,6 +37,14 @@ class TodoRepository(private val context: Context) {
         save { list -> list.filterNot { it.id == id } }
     }
 
+    suspend fun setDone(id: Long, done: Boolean) {
+        save { list -> list.map { if (it.id == id) it.copy(done = done) else it } }
+    }
+
+    suspend fun setStarred(id: Long, starred: Boolean) {
+        save { list -> list.map { if (it.id == id) it.copy(starred = starred) else it } }
+    }
+
     /** Puts a deleted to-do back exactly as it was (same id/createdAt) - backs the
      *  To-Do screen's delete-with-Undo snackbar. */
     suspend fun restore(todo: TodoItem) {

@@ -16,17 +16,55 @@ class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
 
     private val editingItem = MutableStateFlow<TodoItem?>(null)
     private val lastDeleted = MutableStateFlow<TodoItem?>(null)
+    private val filter = MutableStateFlow(TodoFilter.OPEN)
+    private val selectedTaskId = MutableStateFlow<Long?>(null)
 
     val uiState: StateFlow<TodoUiState> = combine(
-        todoRepository.todos,
-        editingItem,
-        lastDeleted
-    ) { todos, editing, deleted ->
-        TodoUiState(todos = todos.sortedByDescending { it.createdAt }, editingItem = editing, lastDeleted = deleted)
+        todoRepository.todos, editingItem, lastDeleted, filter, selectedTaskId
+    ) { todos, editing, deleted, filter, selectedId ->
+        TodoUiState(
+            todos = todos.sortedByDescending { it.createdAt },
+            editingItem = editing,
+            lastDeleted = deleted,
+            filter = filter,
+            selectedTaskId = selectedId
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TodoUiState())
+
+    fun addTodo(text: String) {
+        viewModelScope.launch { todoRepository.add(text) }
+    }
+
+    fun setFilter(newFilter: TodoFilter) {
+        filter.value = newFilter
+        selectedTaskId.value = null
+    }
+
+    fun onTaskSelected(id: Long) {
+        selectedTaskId.value = if (selectedTaskId.value == id) null else id
+    }
+
+    fun onTaskDeselected() {
+        selectedTaskId.value = null
+    }
+
+    fun markDone(item: TodoItem) {
+        viewModelScope.launch {
+            todoRepository.setDone(item.id, true)
+            selectedTaskId.value = null
+        }
+    }
+
+    fun toggleStarred(item: TodoItem) {
+        viewModelScope.launch {
+            todoRepository.setStarred(item.id, !item.starred)
+            selectedTaskId.value = null
+        }
+    }
 
     fun onEditTapped(item: TodoItem) {
         editingItem.value = item
+        selectedTaskId.value = null
     }
 
     fun onSaveEdit(text: String) {
@@ -48,6 +86,7 @@ class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
         viewModelScope.launch {
             todoRepository.delete(item.id)
             lastDeleted.value = item
+            selectedTaskId.value = null
         }
     }
 
