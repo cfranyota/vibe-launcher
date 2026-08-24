@@ -24,9 +24,9 @@ val LauncherTypography = Typography(
     labelSmall = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)
 )
 
-/** Monospace typography scoped to Settings screens only (see each Settings screen's
+/** Monospace typography scoped to Settings screens and Vibe Bar only (see each screen's
  *  `MaterialTheme(typography = settingsTypography())` wrap) - the rest of the app keeps
- *  LauncherTypography untouched. Only overrides the TextStyle slots Settings screens
+ *  LauncherTypography untouched. Only overrides the TextStyle slots those screens
  *  actually use; titleLarge/labelLarge/bodySmall have no explicit override in
  *  LauncherTypography (they fall back to Material3 defaults) but Settings uses all three,
  *  so they're set here explicitly rather than silently inheriting the non-mono default. */

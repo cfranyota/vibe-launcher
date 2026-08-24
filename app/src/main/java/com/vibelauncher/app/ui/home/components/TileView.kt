@@ -53,6 +53,26 @@ fun resolveTileSizeDp(showBorder: Boolean, borderSizeStep: Int, dynamicMaxSizeDp
     return MIN_TILE_SIZE_DP + (cap - MIN_TILE_SIZE_DP) * fraction
 }
 
+/** Bounds for the icon glyph itself (independent of [resolveTileSizeDp], which sizes the
+ *  whole tile box/border). Step 5 is the default users land on until they touch the
+ *  slider - deliberately bigger than the platform-fixed 28dp icons used to be. */
+val ICON_SIZE_MIN_DP = 20.dp
+val ICON_SIZE_DEFAULT_DP = 52.dp
+val ICON_SIZE_MAX_DP = 84.dp
+
+/** Two-segment linear interpolation around the step-5 default (see bounds above), clamped
+ *  against the tile's own current size so a maxed-out icon can never overflow a tile that's
+ *  been shrunk down by the independent border-size slider. */
+fun resolveIconSizeDp(iconSizeStep: Int, tileSizeDp: Dp): Dp {
+    val step = iconSizeStep.coerceIn(1, 10)
+    val raw = if (step <= 5) {
+        ICON_SIZE_MIN_DP + (ICON_SIZE_DEFAULT_DP - ICON_SIZE_MIN_DP) * ((step - 1) / 4f)
+    } else {
+        ICON_SIZE_DEFAULT_DP + (ICON_SIZE_MAX_DP - ICON_SIZE_DEFAULT_DP) * ((step - 5) / 5f)
+    }
+    return raw.coerceAtMost(tileSizeDp - 24.dp)
+}
+
 @Composable
 fun TileView(
     tile: Tile,
@@ -62,10 +82,12 @@ fun TileView(
     iconOverride: Drawable? = null,
     showBorder: Boolean = false,
     borderSizeStep: Int = 5,
+    iconSizeStep: Int = 5,
     dynamicMaxSizeDp: Dp = MAX_TILE_SIZE_DP,
     modifier: Modifier = Modifier
 ) {
     val tileSize = resolveTileSizeDp(showBorder, borderSizeStep, dynamicMaxSizeDp)
+    val iconSize = resolveIconSizeDp(iconSizeStep, tileSize)
     Column(
         modifier = modifier
             .size(tileSize)
@@ -89,7 +111,7 @@ fun TileView(
                 Image(
                     painter = painter,
                     contentDescription = tile.label,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(iconSize)
                 )
             } else {
                 val kind = (tile.target as TileTarget.BuiltIn).kind
@@ -97,18 +119,19 @@ fun TileView(
                     imageVector = builtInIcon(kind),
                     contentDescription = tile.label,
                     tint = LauncherWhite,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(iconSize)
                 )
             }
             if (hasNotification) {
                 // A standalone dot (this asset is now cropped tight to just the badge
-                // graphic, no surrounding transparent margin) offset clear of the 28dp
-                // icon's corner so it never overlaps the icon itself.
+                // graphic, no surrounding transparent margin), offset proportionally to
+                // the icon's own size so it stays tucked at the icon's corner at any
+                // iconSizeStep - reduces to the original fixed 22dp when iconSize == 28dp.
                 Image(
                     painter = painterResource(R.drawable.notification_badge),
                     contentDescription = "Notification",
                     modifier = Modifier
-                        .offset(x = 22.dp, y = (-4).dp)
+                        .offset(x = iconSize - 6.dp, y = (-4).dp)
                         .size(20.dp)
                 )
             }

@@ -31,6 +31,7 @@ fun TileGrid(
     iconOverride: (Tile) -> Drawable? = { null },
     showBorder: Boolean = false,
     borderSizeStep: Int = 5,
+    iconSizeStep: Int = 5,
     dynamicMaxSizeDp: Dp = MAX_TILE_SIZE_DP,
     modifier: Modifier = Modifier
 ) {
@@ -57,6 +58,7 @@ fun TileGrid(
                         iconOverride = iconOverride(tile),
                         showBorder = showBorder,
                         borderSizeStep = borderSizeStep,
+                        iconSizeStep = iconSizeStep,
                         dynamicMaxSizeDp = dynamicMaxSizeDp
                     )
                 }

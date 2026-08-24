@@ -2,7 +2,6 @@ package com.vibelauncher.app.util
 
 import android.app.SearchManager
 import android.content.ComponentName
-import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -27,11 +26,11 @@ object IntentDefaults {
 
     fun defaultTiles(): List<Tile> = listOf(
         Tile(0, "Note", "builtin:note", TileTarget.BuiltIn(BuiltInAction.NOTE)),
-        Tile(1, "Event", "builtin:event", TileTarget.BuiltIn(BuiltInAction.EVENT)),
-        Tile(2, "Timer", "builtin:timer", TileTarget.BuiltIn(BuiltInAction.TIMER)),
+        Tile(1, "Calendar", "builtin:event", TileTarget.BuiltIn(BuiltInAction.EVENT)),
+        Tile(2, "Clock", "builtin:timer", TileTarget.BuiltIn(BuiltInAction.TIMER)),
         Tile(3, "To-Do", "builtin:todo", TileTarget.BuiltIn(BuiltInAction.TODO)),
         Tile(4, "Call", "builtin:call", TileTarget.BuiltIn(BuiltInAction.CALL)),
-        Tile(5, "Message", "builtin:message", TileTarget.BuiltIn(BuiltInAction.MESSAGE)),
+        Tile(5, "Messages", "builtin:message", TileTarget.BuiltIn(BuiltInAction.MESSAGE)),
         Tile(6, "Camera", "builtin:camera", TileTarget.BuiltIn(BuiltInAction.CAMERA)),
         Tile(7, "Memo", "builtin:memo", TileTarget.BuiltIn(BuiltInAction.MEMO))
     )
@@ -40,13 +39,28 @@ object IntentDefaults {
     fun intentFor(action: BuiltInAction, context: Context): Intent? = when (action) {
         BuiltInAction.NOTE -> null
         BuiltInAction.TODO -> null
-        BuiltInAction.EVENT -> {
-            // ACTION_VIEW on the "time" URI opens the calendar app's normal agenda/day
-            // view (today), as opposed to ACTION_INSERT which opens the add-event form.
-            val timeUri = CalendarContract.CONTENT_URI.buildUpon().appendPath("time").build()
-            Intent(Intent.ACTION_VIEW).setData(ContentUris.withAppendedId(timeUri, System.currentTimeMillis()))
+        // ACTION_INSERT on the events URI opens the calendar app's add-event form directly,
+        // the same intent the Vibe Bar's '+' command already hands off to (see
+        // insertCalendarEvent below) - no title/time prefilled here since this is the tile
+        // tap path, not a Vibe Bar submission.
+        BuiltInAction.EVENT -> Intent(Intent.ACTION_INSERT).setData(CalendarContract.Events.CONTENT_URI)
+        BuiltInAction.TIMER -> {
+            // Jump straight to the Clock app's Timer tab where supported (API 30+ AOSP/Google
+            // Clock and most derivatives); ACTION_SET_TIMER is the next-best fallback (opens the
+            // Timer tab via a "set a timer" flow on older or non-standard Clock apps); if neither
+            // resolves, fall back to just opening the Clock app's own main screen, identified via
+            // ACTION_SHOW_ALARMS (a system intent every Clock app has supported since API 1) so we
+            // land in the same app instead of guessing a package name.
+            val showTimers = Intent(AlarmClock.ACTION_SHOW_TIMERS)
+            val setTimer = Intent(AlarmClock.ACTION_SET_TIMER)
+            when {
+                showTimers.resolveActivity(context.packageManager) != null -> showTimers
+                setTimer.resolveActivity(context.packageManager) != null -> setTimer
+                else -> Intent(AlarmClock.ACTION_SHOW_ALARMS)
+                    .resolveActivity(context.packageManager)?.packageName
+                    ?.let { context.packageManager.getLaunchIntentForPackage(it) }
+            }
         }
-        BuiltInAction.TIMER -> Intent(AlarmClock.ACTION_SET_TIMER)
         BuiltInAction.CALL -> Intent(Intent.ACTION_DIAL)
         BuiltInAction.MESSAGE -> {
             // Launch the default SMS app's own main screen (conversation list) rather

@@ -20,6 +20,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,11 +35,14 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import com.vibelauncher.app.ui.settings.components.SectionHeader
+import com.vibelauncher.app.ui.settings.components.ToggleRow
 import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
 import com.vibelauncher.app.ui.theme.LauncherWhite
 import com.vibelauncher.app.ui.theme.LocalAccentColor
 import com.vibelauncher.app.ui.theme.settingsTypography
+import kotlin.math.roundToInt
 
 @Composable
 fun IconThemeScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
@@ -70,6 +75,35 @@ fun IconThemeScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
                 color = LauncherMutedGray,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp)
+            )
+
+            SectionHeader("ICON SIZE")
+            Text(
+                text = "icon size: ${uiState.iconSizeStep}/10",
+                color = LauncherMutedGray,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp)
+            )
+            Slider(
+                value = uiState.iconSizeStep.toFloat(),
+                onValueChange = { viewModel.setIconSizeStep(it.roundToInt()) },
+                valueRange = 1f..10f,
+                steps = 8,
+                colors = SliderDefaults.colors(
+                    thumbColor = LocalAccentColor.current,
+                    activeTrackColor = LocalAccentColor.current
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+
+            SectionHeader("HOME SCREEN")
+            ToggleRow(
+                title = "Don't change homescreen apps",
+                subtitle = "keep home tiles on default icons; app drawer still themed",
+                checked = uiState.homeIconsStayDefault,
+                onCheckedChange = viewModel::setHomeIconsStayDefault
             )
 
             LazyColumn(modifier = Modifier.padding(top = 12.dp)) {

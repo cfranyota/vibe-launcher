@@ -1,13 +1,14 @@
 package com.vibelauncher.app.ui.home.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -16,7 +17,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,81 +27,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vibelauncher.app.data.contacts.ContactResult
+import com.vibelauncher.app.ui.theme.CardCornerShape
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
 import com.vibelauncher.app.ui.theme.LauncherWhite
-import com.vibelauncher.app.ui.theme.VibeAppColor
-import com.vibelauncher.app.ui.theme.VibeCallColor
-import com.vibelauncher.app.ui.theme.VibeEventColor
-import com.vibelauncher.app.ui.theme.VibeNoteColor
-import com.vibelauncher.app.ui.theme.VibeTextColor
-import com.vibelauncher.app.ui.theme.VibeTodoColor
-import com.vibelauncher.app.features.vibebar.VIBE_BAR_NOTE_PREFIX
-
-private data class VibeBarCommand(val key: Char, val label: String, val color: Color)
-
-/** Shown when the bar is expanded and empty - a grid of the 6 hotkeys, tap one to
- *  pre-fill that prefix. */
-@Composable
-internal fun VibeBarLegend(activePrefix: Char?, onSelect: (Char) -> Unit) {
-    val commands = listOf(
-        VibeBarCommand('@', "Text", VibeTextColor),
-        VibeBarCommand('#', "Call", VibeCallColor),
-        VibeBarCommand('-', "To-Do", VibeTodoColor),
-        VibeBarCommand(VIBE_BAR_NOTE_PREFIX, "Note", VibeNoteColor),
-        VibeBarCommand('+', "Event", VibeEventColor),
-        VibeBarCommand('?', "App", VibeAppColor)
-    )
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = .96f),
-        shadowElevation = 8.dp
-    ) {
-        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "HOT KEYS",
-                    Modifier.weight(1f),
-                    color = LauncherMutedGray,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp
-                )
-                Text("just type to search", color = LauncherMutedGray, fontSize = 11.sp)
-            }
-            commands.chunked(3).forEach { rowCommands ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    rowCommands.forEach { command ->
-                        val active = activePrefix == command.key
-                        Surface(
-                            onClick = { onSelect(command.key) },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (active) command.color else MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = if (active) LauncherWhite else MaterialTheme.colorScheme.onSurface
-                        ) {
-                            Row(
-                                Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    command.key.toString(),
-                                    fontWeight = FontWeight.Black,
-                                    color = if (active) LauncherWhite else command.color
-                                )
-                                Text(
-                                    command.label,
-                                    Modifier.padding(start = 8.dp),
-                                    fontSize = 12.sp,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 
 /** The locked-in-contact chip shown in the input row after selecting a contact for '@'. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -141,5 +71,50 @@ internal fun SuggestionRow(
             Icon(icon, null, Modifier.size(20.dp), tint = contentColor)
         }
         Text(text, Modifier.padding(start = 12.dp), color = contentColor, maxLines = 1, fontSize = 14.sp)
+    }
+}
+
+/** A contact match: initial-letter avatar + name + trailing phone label (mobile/main/...).
+ *  The top match ([emphasized]) gets a solid accent fill; the rest are flat outlined rows. */
+@Composable
+internal fun ContactSuggestionRow(contact: ContactResult, emphasized: Boolean, onClick: () -> Unit) {
+    val accent = LocalAccentColor.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CardCornerShape)
+            .background(if (emphasized) accent else Color.Transparent)
+            .then(
+                if (!emphasized) Modifier.border(1.dp, LauncherMutedGray.copy(alpha = 0.35f), CardCornerShape)
+                else Modifier
+            )
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(if (emphasized) LauncherWhite.copy(alpha = 0.25f) else accent.copy(alpha = 0.2f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = contact.name.firstOrNull()?.uppercase() ?: "?",
+                color = if (emphasized) LauncherWhite else accent,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Text(
+            text = contact.name,
+            modifier = Modifier.weight(1f).padding(start = 12.dp),
+            color = if (emphasized) LauncherWhite else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
+        Text(
+            text = contact.phoneLabel,
+            color = if (emphasized) LauncherWhite.copy(alpha = 0.8f) else LauncherMutedGray,
+            style = MaterialTheme.typography.labelSmall
+        )
     }
 }

@@ -35,7 +35,10 @@ private val BUILT_IN_KEYWORDS: Map<BuiltInAction, List<String>> = mapOf(
     BuiltInAction.TIMER to listOf("timer", "alarm", "clock"),
     BuiltInAction.TODO to listOf("todo", "checklist", "task"),
     BuiltInAction.CALL to listOf("call", "phone", "dialer"),
-    BuiltInAction.MESSAGE to listOf("message", "sms", "chat"),
+    // "messaging" deliberately listed alongside "message" - some packs (e.g. drawables
+    // named after the Google Messages app's own component, com_google_android_apps_
+    // messaging) use the "-ing" form, which doesn't contain "message" as a substring.
+    BuiltInAction.MESSAGE to listOf("message", "messaging", "sms", "chat"),
     BuiltInAction.CAMERA to listOf("camera"),
     BuiltInAction.MEMO to listOf("memo", "record", "voice", "mic")
 )

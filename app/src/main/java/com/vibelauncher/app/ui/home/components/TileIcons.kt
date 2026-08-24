@@ -1,9 +1,9 @@
 package com.vibelauncher.app.ui.home.components
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Checklist
-import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Notes
 import androidx.compose.material.icons.outlined.Phone
@@ -15,7 +15,7 @@ import com.vibelauncher.app.model.BuiltInAction
 /** Fixed per-category glyph - stays the same regardless of which app a tile is assigned to. */
 fun builtInIcon(action: BuiltInAction): ImageVector = when (action) {
     BuiltInAction.NOTE -> Icons.Outlined.Notes
-    BuiltInAction.EVENT -> Icons.Outlined.Event
+    BuiltInAction.EVENT -> Icons.Outlined.CalendarMonth
     BuiltInAction.TIMER -> Icons.Outlined.Timer
     BuiltInAction.TODO -> Icons.Outlined.Checklist
     BuiltInAction.CALL -> Icons.Outlined.Phone

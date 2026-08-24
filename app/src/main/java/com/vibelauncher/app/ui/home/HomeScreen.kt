@@ -235,7 +235,7 @@ fun HomeScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 val currentTimedEvent = collapsedTimedEvent(uiState.timedEvents, uiState.selectedDayOffset, uiState.nowMillis)
-                val collapsedEvent = uiState.allDayEvents.firstOrNull() ?: currentTimedEvent
+                val collapsedEvent = currentTimedEvent ?: uiState.allDayEvents.firstOrNull()
                 val bothBarsShowing = uiState.hasCalendarPermission &&
                     collapsedEvent != null &&
                     uiState.tasks.firstOrNull() != null
@@ -277,13 +277,8 @@ fun HomeScreen(
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                         )
                     } else {
-                        val expandedTimedEvents = if (currentTimedEvent == null) {
-                            uiState.timedEvents
-                        } else {
-                            uiState.timedEvents.dropWhile { it.id != currentTimedEvent.id }
-                        }
                         ExpandableEventSection(
-                            events = uiState.allDayEvents + expandedTimedEvents,
+                            events = uiState.allDayEvents + uiState.timedEvents,
                             collapsedEvent = collapsedEvent,
                             expanded = uiState.eventsExpanded,
                             nowMillis = uiState.nowMillis,
@@ -340,6 +335,7 @@ fun HomeScreen(
                     iconOverride = { tile -> viewModel.iconFor(tile) },
                     showBorder = uiState.tileBorderEnabled,
                     borderSizeStep = uiState.tileBorderSizeStep,
+                    iconSizeStep = uiState.iconSizeStep,
                     dynamicMaxSizeDp = safeMaxTileSizeDp
                 )
                 DrawerHandle(onOpenDrawer = guardedOnOpenDrawer)

@@ -7,5 +7,7 @@ data class SettingsUiState(
     val selectedIconThemePackage: String = "",
     val tileBorderEnabled: Boolean = false,
     val tileBorderSizeStep: Int = 5,
-    val vibeBarEnabled: Boolean = true
+    val vibeBarEnabled: Boolean = true,
+    val iconSizeStep: Int = 5,
+    val homeIconsStayDefault: Boolean = false
 )

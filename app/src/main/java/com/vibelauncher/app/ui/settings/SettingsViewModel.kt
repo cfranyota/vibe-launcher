@@ -41,6 +41,16 @@ class SettingsViewModel(
                 _uiState.value = _uiState.value.copy(vibeBarEnabled = enabled)
             }
         }
+        viewModelScope.launch {
+            settingsRepository.iconSizeStep.collectLatest { step ->
+                _uiState.value = _uiState.value.copy(iconSizeStep = step)
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.homeIconsStayDefault.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(homeIconsStayDefault = enabled)
+            }
+        }
     }
 
     fun selectIconTheme(packageName: String) {
@@ -57,6 +67,14 @@ class SettingsViewModel(
 
     fun setVibeBarEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setVibeBarEnabled(enabled) }
+    }
+
+    fun setIconSizeStep(step: Int) {
+        viewModelScope.launch { settingsRepository.setIconSizeStep(step) }
+    }
+
+    fun setHomeIconsStayDefault(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setHomeIconsStayDefault(enabled) }
     }
 
     class Factory(

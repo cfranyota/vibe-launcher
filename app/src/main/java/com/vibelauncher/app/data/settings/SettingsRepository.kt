@@ -21,6 +21,8 @@ private val ICON_ACCENT_COLOR_KEY = intPreferencesKey("icon_accent_color")
 private val ICON_ACCENT_COLOR_ENABLED_KEY = booleanPreferencesKey("icon_accent_color_enabled")
 private val ACCENT_COLOR_KEY = intPreferencesKey("accent_color")
 private val FONT_SCALE_KEY = floatPreferencesKey("font_scale")
+private val ICON_SIZE_STEP_KEY = intPreferencesKey("icon_size_step")
+private val HOME_ICONS_STAY_DEFAULT_KEY = booleanPreferencesKey("home_icons_stay_default")
 
 /** Default event-card color, matching `LauncherCard` in ui/theme/Color.kt (0xFF1A1A1A) -
  *  duplicated as a raw constant here so this data-layer file doesn't need to depend on
@@ -43,6 +45,10 @@ private const val DEFAULT_ACCENT_COLOR = 0xFFF97316.toInt()
 /** 1.0 = no adjustment - matches Android's own fontScale semantics so it composes
  *  multiplicatively with the OS accessibility font scale instead of replacing it. */
 private const val DEFAULT_FONT_SCALE = 1.0f
+
+/** 1-10 scale, defaults to the midpoint (see TileView.kt's resolveIconSizeDp) - matches
+ *  today's fixed 28dp icon glyph exactly, so existing installs see no visual change. */
+private const val DEFAULT_ICON_SIZE_STEP = 5
 
 class SettingsRepository(private val context: Context) {
 
@@ -125,5 +131,22 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setFontScale(scale: Float) {
         context.settingsDataStore.edit { it[FONT_SCALE_KEY] = scale }
+    }
+
+    /** 1-10 scale, defaults to the midpoint. Independent of tileBorderSizeStep above - this
+     *  one resizes the icon glyph itself, not the whole tile box. */
+    val iconSizeStep = context.settingsDataStore.data.map { it[ICON_SIZE_STEP_KEY] ?: DEFAULT_ICON_SIZE_STEP }
+
+    suspend fun setIconSizeStep(step: Int) {
+        context.settingsDataStore.edit { it[ICON_SIZE_STEP_KEY] = step }
+    }
+
+    /** Off by default - home tiles theme along with the app drawer. When on, home tiles keep
+     *  their stock icons (real apps show their own launcher icon, built-ins show their fixed
+     *  glyph) regardless of the selected pack; the app drawer is unaffected either way. */
+    val homeIconsStayDefault = context.settingsDataStore.data.map { it[HOME_ICONS_STAY_DEFAULT_KEY] ?: false }
+
+    suspend fun setHomeIconsStayDefault(enabled: Boolean) {
+        context.settingsDataStore.edit { it[HOME_ICONS_STAY_DEFAULT_KEY] = enabled }
     }
 }

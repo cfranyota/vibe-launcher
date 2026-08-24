@@ -31,5 +31,6 @@ data class HomeUiState(
     val tileBorderSizeStep: Int = 5,
     val vibeBarEnabled: Boolean = true,
     val iconAccentColorArgb: Int = 0xFFF97316.toInt(),
-    val iconAccentColorEnabled: Boolean = false
+    val iconAccentColorEnabled: Boolean = false,
+    val iconSizeStep: Int = 5
 )

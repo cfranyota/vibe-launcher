@@ -76,6 +76,8 @@ class HomeViewModel(
     private val tileBorderEnabled = MutableStateFlow(false)
     private val tileBorderSizeStep = MutableStateFlow(5)
     private val vibeBarEnabled = MutableStateFlow(true)
+    private val iconSizeStep = MutableStateFlow(5)
+    private val homeIconsStayDefault = MutableStateFlow(false)
     private val todos = MutableStateFlow<List<TodoItem>>(emptyList())
 
     // Owned by the ViewModel (not composable `remember` state) because Navigation Compose
@@ -134,6 +136,12 @@ class HomeViewModel(
             settingsRepository.vibeBarEnabled.collectLatest { vibeBarEnabled.value = it }
         }
         viewModelScope.launch {
+            settingsRepository.iconSizeStep.collectLatest { iconSizeStep.value = it }
+        }
+        viewModelScope.launch {
+            settingsRepository.homeIconsStayDefault.collectLatest { homeIconsStayDefault.value = it }
+        }
+        viewModelScope.launch {
             todoRepository.todos.collectLatest { todos.value = it }
         }
     }
@@ -160,7 +168,8 @@ class HomeViewModel(
         vibeBarEnabled,
         todos,
         iconAccentColorArgb,
-        iconAccentColorEnabled
+        iconAccentColorEnabled,
+        iconSizeStep
     ) { values ->
         val events = values[1] as DayEvents
         @Suppress("UNCHECKED_CAST")
@@ -197,7 +206,8 @@ class HomeViewModel(
             tileBorderSizeStep = values[17] as Int,
             vibeBarEnabled = values[18] as Boolean,
             iconAccentColorArgb = values[20] as Int,
-            iconAccentColorEnabled = values[21] as Boolean
+            iconAccentColorEnabled = values[21] as Boolean,
+            iconSizeStep = values[22] as Int
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
@@ -280,6 +290,14 @@ class HomeViewModel(
      *  null (the fixed glyph) if the pack has nothing matching that action. */
     fun iconFor(tile: Tile): Drawable? {
         val target = tile.target
+        if (homeIconsStayDefault.value) {
+            return if (target is TileTarget.BuiltIn) {
+                null // TileView falls back to the fixed Material glyph, same as "no pack selected"
+            } else {
+                target as TileTarget.App
+                installedAppsRepository.iconFor(target.packageName, target.className)
+            }
+        }
         val themePackage = iconThemePackage.value
         if (target is TileTarget.BuiltIn) {
             if (themePackage.isBlank()) return null
