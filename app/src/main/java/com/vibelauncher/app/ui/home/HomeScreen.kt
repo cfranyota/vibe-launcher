@@ -59,6 +59,7 @@ import com.vibelauncher.app.ui.home.components.ZipCodeDialog
 import com.vibelauncher.app.ui.picker.AppPickerDialog
 import com.vibelauncher.app.ui.picker.AppPickerViewModel
 import com.vibelauncher.app.util.IntentDefaults
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 
 /** Down-events starting above this height are treated as a header day-swipe (horizontal).
@@ -66,6 +67,15 @@ import kotlin.math.abs
  *  at the bottom instead of a gesture zone here. */
 private val HEADER_SWIPE_ZONE_DP = 180.dp
 private const val SWIPE_THRESHOLD_PX = 120f
+
+/** Upper-right rectangle (within the header's vertical band) reserved for the
+ *  double-tap-to-open-Vibe-Bar gesture, for touchscreen-only phones with no hardware
+ *  keyboard. Right-anchored so it never overlaps DateWeatherHeader's left-aligned,
+ *  unwidened weather row (its own onWeatherClick clickable). Sits inside
+ *  HEADER_SWIPE_ZONE_DP's y-range on purpose - see detectVibeBarDoubleTap's doc comment
+ *  for why the two detectors don't conflict. */
+private val VIBE_BAR_TAP_ZONE_HEIGHT_DP = 90.dp
+private val VIBE_BAR_TAP_ZONE_WIDTH_DP = 120.dp
 
 /** TileGrid's own vertical padding (12dp top + 6dp bottom) + the fixed gap between its two
  *  rows (TileGrid's ROW_GAP_DP = 12dp - deliberately not tied to the horizontal spacing, so
@@ -77,6 +87,17 @@ private val GRID_CHROME_DP = 54.dp
 /** Small safety buffer subtracted before sizing tiles, so the bare-minimum-safe-fit math
  *  has a little slack for rounding rather than sizing tiles right up to the exact edge. */
 private val EXTRA_MARGIN_DP = 4.dp
+
+/** TileGrid's own horizontal padding (12dp start + 12dp end) - must match TileGrid.kt's
+ *  Column padding, or the width-derived tile-size cap below could still overflow/underflow. */
+private val GRID_HORIZONTAL_PADDING_DP = 24.dp
+
+/** Tile columns per row - always 4, never adaptive (tiles scale down by width instead). */
+private const val COLUMNS_PER_ROW = 4
+
+/** Conservative minimum gap reserved across the 5 SpaceEvenly slots (before/between/after
+ *  the 4 tiles in a row), so tiles never render edge-to-edge once width-bound. */
+private val MIN_INTER_TILE_GAP_DP = 8.dp
 
 /** Conservative fallback for the collapsed content's height (page indicator + 2 stacked
  *  cards, header NOT included - that's measured separately as headerHeightPx) - used only
@@ -95,6 +116,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showZipDialog by remember { mutableStateOf(false) }
     var showNoteBubble by remember { mutableStateOf(false) }
+    var vibeBarOpenRequestToken by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val context = LocalContext.current
 
@@ -107,6 +129,7 @@ fun HomeScreen(
     // sizes tiles against that same worst-case number, so tiles never resize as you swipe
     // between days and are never bigger than what a 2-bar day can safely fit.
     var totalHeightPx by remember { mutableIntStateOf(0) }
+    var totalWidthPx by remember { mutableIntStateOf(0) }
     var headerHeightPx by remember { mutableIntStateOf(0) }
     val safeMaxTileSizeDp = with(density) {
         val totalDp = totalHeightPx.toDp()
@@ -116,7 +139,16 @@ fun HomeScreen(
             FALLBACK_TWO_BAR_CONTENT_DP
         }
         val topContentDp = headerHeightPx.toDp() + twoBarContentDp
-        ((totalDp - topContentDp - GRID_CHROME_DP - EXTRA_MARGIN_DP) / 2).coerceIn(MIN_TILE_SIZE_DP, MAX_TILE_SIZE_DP)
+        val heightCapDp = (totalDp - topContentDp - GRID_CHROME_DP - EXTRA_MARGIN_DP) / 2
+
+        // Screen width never entered this formula before - on tall/narrow screens the
+        // height cap alone could exceed what 4 columns actually fit, clipping tiles off
+        // the edge (TileGrid's Row has no wrap/scroll). Cap by width too so 4 tiles +
+        // gaps always fit, by construction.
+        val widthCapDp = (totalWidthPx.toDp() - GRID_HORIZONTAL_PADDING_DP -
+            MIN_INTER_TILE_GAP_DP * (COLUMNS_PER_ROW + 1)) / COLUMNS_PER_ROW
+
+        minOf(heightCapDp, widthCapDp).coerceIn(MIN_TILE_SIZE_DP, MAX_TILE_SIZE_DP)
     }
 
     // This composable is freshly (re)created every time Home becomes the visible screen
@@ -153,7 +185,10 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onGloballyPositioned { totalHeightPx = it.size.height }
+            .onGloballyPositioned {
+                totalHeightPx = it.size.height
+                totalWidthPx = it.size.width
+            }
             // No opaque background here - the activity window itself renders the system
             // wallpaper behind this content (see Theme.VibeLauncher's windowShowWallpaper
             // + MainActivity's FLAG_SHOW_WALLPAPER); painting a solid color would hide it.
@@ -162,6 +197,19 @@ fun HomeScreen(
                 detectHeaderDaySwipe(
                     headerZonePx = headerZonePx,
                     onDaySwipe = { delta -> viewModel.onDayOffsetChange(delta) }
+                )
+            }
+            // Independent pointerInput - Compose gives each its own copy of the event
+            // stream, so this doesn't compete with detectHeaderDaySwipe above for the
+            // same gesture (see detectVibeBarDoubleTap's doc comment).
+            .pointerInput(Unit) {
+                val zoneHeightPx = with(density) { VIBE_BAR_TAP_ZONE_HEIGHT_DP.toPx() }
+                val zoneWidthPx = with(density) { VIBE_BAR_TAP_ZONE_WIDTH_DP.toPx() }
+                detectVibeBarDoubleTap(
+                    zoneHeightPx = zoneHeightPx,
+                    zoneWidthPx = zoneWidthPx,
+                    totalWidthPx = { totalWidthPx },
+                    onDoubleTap = { vibeBarOpenRequestToken++ }
                 )
             }
     ) {
@@ -303,7 +351,8 @@ fun HomeScreen(
         if (uiState.vibeBarEnabled) {
             VibeBar(
                 keyboardInputEnabled = uiState.pickerForSlot == null && !showZipDialog && !showNoteBubble,
-                onOpenNote = { showNoteBubble = true }
+                onOpenNote = { showNoteBubble = true },
+                openRequestToken = vibeBarOpenRequestToken
             )
         }
     }
@@ -386,6 +435,54 @@ private suspend fun PointerInputScope.detectHeaderDaySwipe(
                 totalX <= -SWIPE_THRESHOLD_PX -> onDaySwipe(1)
                 totalX >= SWIPE_THRESHOLD_PX -> onDaySwipe(-1)
             }
+        }
+    }
+}
+
+/**
+ * Touch-only trigger for Vibe Bar, for phones with no hardware keyboard (Vibe Bar otherwise
+ * only opens via a physical keystroke - see VibeBar.kt's onPreviewKeyEvent). Watches for two
+ * taps, both landing in the upper-right [VIBE_BAR_TAP_ZONE_WIDTH_DP] x
+ * [VIBE_BAR_TAP_ZONE_HEIGHT_DP] rectangle, within the platform's double-tap timing window.
+ *
+ * Runs as an independent `pointerInput` from [detectHeaderDaySwipe] (Compose gives each
+ * `pointerInput` modifier its own copy of the event stream), and never consumes a single tap,
+ * a drag, or a second tap outside the zone - only the second down of a *confirmed* double-tap
+ * is consumed. That's what lets this coexist with detectHeaderDaySwipe (which only consumes
+ * once real dragging is confirmed, so taps never reach it anyway) and with
+ * DateWeatherHeader's own onWeatherClick further down the tree (whose left-aligned, unwidened
+ * weather row never falls inside this right-anchored zone).
+ */
+private suspend fun PointerInputScope.detectVibeBarDoubleTap(
+    zoneHeightPx: Float,
+    zoneWidthPx: Float,
+    totalWidthPx: () -> Int,
+    onDoubleTap: () -> Unit
+) {
+    fun inZone(x: Float, y: Float): Boolean {
+        val rightEdgePx = totalWidthPx().toFloat()
+        return y < zoneHeightPx && x > (rightEdgePx - zoneWidthPx)
+    }
+
+    awaitEachGesture {
+        val firstDown = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        if (!inZone(firstDown.position.x, firstDown.position.y)) return@awaitEachGesture
+
+        // Let the first tap release normally (not a drag) without consuming it.
+        val firstPointerId = firstDown.id
+        while (true) {
+            val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+            val change = event.changes.firstOrNull { it.id == firstPointerId } ?: return@awaitEachGesture
+            if (!change.pressed) break
+        }
+
+        val secondDown = withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        } ?: return@awaitEachGesture
+
+        if (inZone(secondDown.position.x, secondDown.position.y)) {
+            secondDown.consume()
+            onDoubleTap()
         }
     }
 }

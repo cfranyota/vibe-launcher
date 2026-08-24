@@ -112,7 +112,12 @@ private const val VIBE_BAR_MIN_HEIGHT_DP = 56
  * '+' hands off to the Calendar app, same as ever.
  */
 @Composable
-fun VibeBar(keyboardInputEnabled: Boolean, onOpenNote: () -> Unit, modifier: Modifier = Modifier) {
+fun VibeBar(
+    keyboardInputEnabled: Boolean,
+    onOpenNote: () -> Unit,
+    openRequestToken: Int = 0,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val contactsRepository = remember { ContactsRepository(context) }
     val installedAppsRepository = remember { InstalledAppsRepository(context) }
@@ -274,8 +279,23 @@ fun VibeBar(keyboardInputEnabled: Boolean, onOpenNote: () -> Unit, modifier: Mod
         if (!keyboardInputEnabled) return@LaunchedEffect
         if (expanded) {
             runCatching { focusRequester.requestFocus() }
+            // No-op when a hardware keyboard is attached; on a touch-only phone this is
+            // what actually pops the IME up after the double-tap trigger below focuses
+            // the field - focus alone doesn't reliably show the keyboard on its own.
+            keyboard?.show()
         } else {
             runCatching { armedFocusRequester.requestFocus() }
+        }
+    }
+
+    // External trigger for touch-only phones with no hardware keyboard to open Vibe Bar
+    // (see HomeScreen's detectVibeBarDoubleTap) - mirrors what the hardware key handler
+    // below does when arming, minus seeding a character, since typing here comes from the
+    // software keyboard rather than a keystroke.
+    LaunchedEffect(openRequestToken) {
+        if (openRequestToken > 0 && !expanded) {
+            clearCommand()
+            expanded = true
         }
     }
 
