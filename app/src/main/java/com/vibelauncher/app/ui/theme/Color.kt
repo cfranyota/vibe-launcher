@@ -7,6 +7,9 @@ import androidx.compose.ui.graphics.Color
 // (the wallpaper showing through, EventCard shadows, the Vibe Bar scrim).
 val LauncherBlack = Color(0xFF0A0A0A)
 val LauncherWhite = Color(0xFFFFFFFF)
+// No longer the live theme accent - that's now user-customizable, see LocalAccentColor.
+// Kept as a legacy constant: HomeViewModel's icon-accent-color feature seeds from it, and
+// it's offered as one of the accent preset swatches on the Appearance screen.
 val LauncherRed = Color(0xFFEF4444)
 val LauncherCard = Color(0xFF1A1A1A)
 val LauncherMutedGray = Color(0xFF9E9E9E)

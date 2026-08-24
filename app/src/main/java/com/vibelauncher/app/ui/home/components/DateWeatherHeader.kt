@@ -21,8 +21,8 @@ import com.vibelauncher.app.data.weather.WeatherInfo
 import com.vibelauncher.app.ui.theme.DateWeatherTextStyle
 import com.vibelauncher.app.ui.theme.DayTextStyle
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
-import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.ui.theme.LauncherWhite
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 import com.vibelauncher.app.util.ordinalSuffix
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -38,7 +38,7 @@ fun DateWeatherHeader(
     weatherLoading: Boolean,
     onWeatherClick: () -> Unit,
     modifier: Modifier = Modifier,
-    sunTint: Color = LauncherRed
+    sunTint: Color = LocalAccentColor.current
 ) {
     val date = remember(selectedDayOffset) { LocalDate.now().plusDays(selectedDayOffset.toLong()) }
     val dayOfWeekText = remember(date) {
@@ -61,7 +61,7 @@ fun DateWeatherHeader(
             when {
                 weatherLoading -> {
                     CircularProgressIndicator(
-                        color = LauncherRed,
+                        color = LocalAccentColor.current,
                         strokeWidth = 2.dp,
                         modifier = Modifier
                             .padding(end = 6.dp)

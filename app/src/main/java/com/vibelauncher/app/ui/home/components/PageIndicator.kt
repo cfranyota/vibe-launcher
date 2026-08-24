@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.vibelauncher.app.ui.theme.LauncherRed
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 
 /** Tracks the header's day-browsing position: [activeIndex] = selectedDayOffset + 12. */
 @Composable
@@ -21,7 +21,7 @@ fun PageIndicator(dotCount: Int = 25, activeIndex: Int = 12, modifier: Modifier 
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         repeat(dotCount) { index ->
-            val color = if (index == activeIndex) LauncherRed else MaterialTheme.colorScheme.secondary
+            val color = if (index == activeIndex) LocalAccentColor.current else MaterialTheme.colorScheme.secondary
             Row(
                 modifier = Modifier
                     .size(6.dp)

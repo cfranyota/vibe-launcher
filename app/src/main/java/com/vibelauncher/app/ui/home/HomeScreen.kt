@@ -28,7 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.vibelauncher.app.ui.theme.LauncherCard
-import com.vibelauncher.app.ui.theme.LauncherRed
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -220,7 +220,7 @@ fun HomeScreen(
                 weather = uiState.weather,
                 weatherLoading = uiState.weatherLoading,
                 onWeatherClick = { showZipDialog = true },
-                sunTint = if (uiState.iconAccentColorEnabled) Color(uiState.iconAccentColorArgb) else LauncherRed,
+                sunTint = if (uiState.iconAccentColorEnabled) Color(uiState.iconAccentColorArgb) else LocalAccentColor.current,
                 modifier = Modifier.onGloballyPositioned { headerHeightPx = it.size.height }
             )
 
@@ -265,7 +265,7 @@ fun HomeScreen(
                     }
 
                     val cardColor = if (uiState.eventCardColorEnabled) Color(uiState.eventCardColorArgb) else LauncherCard
-                    val iconTint = if (uiState.iconAccentColorEnabled) Color(uiState.iconAccentColorArgb) else LauncherRed
+                    val iconTint = if (uiState.iconAccentColorEnabled) Color(uiState.iconAccentColorArgb) else LocalAccentColor.current
 
                     // Top card is 100% real calendar data (all-day events first, then timed
                     // events), so it stays fully gated behind calendar permission. Bottom
@@ -337,7 +337,7 @@ fun HomeScreen(
                         uiState.hasNotificationAccess &&
                             IntentDefaults.packageForTile(tile, context) in uiState.notificationPackages
                     },
-                    iconOverride = { tile -> viewModel.themedIconFor(tile) },
+                    iconOverride = { tile -> viewModel.iconFor(tile) },
                     showBorder = uiState.tileBorderEnabled,
                     borderSizeStep = uiState.tileBorderSizeStep,
                     dynamicMaxSizeDp = safeMaxTileSizeDp

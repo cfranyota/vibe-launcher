@@ -32,8 +32,8 @@ import com.vibelauncher.app.data.calendar.timeUntilLabel
 import com.vibelauncher.app.ui.theme.CardCornerShape
 import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
-import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.ui.theme.LauncherWhite
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,7 +47,7 @@ fun EventCard(
     onClick: (() -> Unit)? = null,
     badgeOverride: String? = null,
     icon: ImageVector = Icons.Filled.Event,
-    iconTint: Color = LauncherRed
+    iconTint: Color = LocalAccentColor.current
 ) {
     val timeText = remember(event) {
         if (event.isAllDay) "all day" else SimpleDateFormat("h:mm a", Locale.getDefault())

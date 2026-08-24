@@ -18,8 +18,6 @@ import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,10 +31,13 @@ import com.vibelauncher.app.ui.home.components.EventCard
 import com.vibelauncher.app.ui.settings.components.BrightnessSlider
 import com.vibelauncher.app.ui.settings.components.ColorWheel
 import com.vibelauncher.app.ui.settings.components.OpacitySlider
+import com.vibelauncher.app.ui.settings.components.PillToggle
+import com.vibelauncher.app.ui.settings.components.SectionHeader
 import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
-import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.ui.theme.LauncherWhite
+import com.vibelauncher.app.ui.theme.LocalAccentColor
+import com.vibelauncher.app.ui.theme.settingsTypography
 
 private val PREVIEW_EVENT = CalendarEvent(
     id = -1,
@@ -57,6 +58,7 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
     val customColor = Color.hsv(uiState.hue, uiState.saturation, uiState.brightness, uiState.opacity)
     val previewColor = if (uiState.enabled) customColor else LauncherCard
 
+    MaterialTheme(typography = settingsTypography()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -72,7 +74,7 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
                 Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back", tint = LauncherWhite)
             }
             Text(
-                text = "Card & Icon Color",
+                text = "card & icon color",
                 color = LauncherWhite,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 8.dp)
@@ -85,6 +87,7 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp)
         )
 
+        SectionHeader("Card Color")
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -93,11 +96,7 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = "Custom color", color = LauncherWhite, style = MaterialTheme.typography.bodyLarge)
-            Switch(
-                checked = uiState.enabled,
-                onCheckedChange = viewModel::setEnabled,
-                colors = SwitchDefaults.colors(checkedTrackColor = LauncherRed)
-            )
+            PillToggle(checked = uiState.enabled, onCheckedChange = viewModel::setEnabled)
         }
         Text(
             text = if (uiState.enabled) "On - cards use the color below." else "Off - cards stay the default color.",
@@ -136,12 +135,7 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
         )
 
-        Text(
-            text = "Icon Color",
-            color = LauncherWhite,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 24.dp, top = 24.dp)
-        )
+        SectionHeader("Icon Color", modifier = Modifier.padding(top = 24.dp))
         Text(
             text = "Applies to the calendar and to-do icons, the badge circle, and the weather sun icon.",
             color = LauncherMutedGray,
@@ -157,14 +151,10 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = "Custom color", color = LauncherWhite, style = MaterialTheme.typography.bodyLarge)
-            Switch(
-                checked = uiState.iconEnabled,
-                onCheckedChange = viewModel::setIconEnabled,
-                colors = SwitchDefaults.colors(checkedTrackColor = LauncherRed)
-            )
+            PillToggle(checked = uiState.iconEnabled, onCheckedChange = viewModel::setIconEnabled)
         }
         Text(
-            text = if (uiState.iconEnabled) "On - icons use the color below." else "Off - icons stay the default red.",
+            text = if (uiState.iconEnabled) "On - icons use the color below." else "Off - icons stay the app accent.",
             color = LauncherMutedGray,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp)
@@ -173,7 +163,7 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
         val iconPreviewColor = if (uiState.iconEnabled) {
             Color.hsv(uiState.iconHue, uiState.iconSaturation, uiState.iconBrightness)
         } else {
-            LauncherRed
+            LocalAccentColor.current
         }
         Row(
             modifier = Modifier.padding(horizontal = 24.dp),
@@ -200,5 +190,6 @@ fun CardColorScreen(viewModel: CardColorViewModel, onBack: () -> Unit) {
             onValueChange = viewModel::setIconBrightness,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
         )
+    }
     }
 }

@@ -25,21 +25,6 @@ import com.vibelauncher.app.model.TileTarget
 object IntentDefaults {
     const val SLOT_COUNT = 8
 
-    private val SLOT_ACTIONS = listOf(
-        BuiltInAction.NOTE,
-        BuiltInAction.EVENT,
-        BuiltInAction.TIMER,
-        BuiltInAction.TODO,
-        BuiltInAction.CALL,
-        BuiltInAction.MESSAGE,
-        BuiltInAction.CAMERA,
-        BuiltInAction.MEMO
-    )
-
-    /** A tile's category (and therefore its icon) is fixed by slot position, even after
-     *  the slot is reassigned to a different app. */
-    fun actionForSlot(slot: Int): BuiltInAction = SLOT_ACTIONS[slot]
-
     fun defaultTiles(): List<Tile> = listOf(
         Tile(0, "Note", "builtin:note", TileTarget.BuiltIn(BuiltInAction.NOTE)),
         Tile(1, "Event", "builtin:event", TileTarget.BuiltIn(BuiltInAction.EVENT)),

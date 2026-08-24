@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.vibelauncher.app.data.calendar.CalendarEvent
 import com.vibelauncher.app.ui.theme.LauncherCard
-import com.vibelauncher.app.ui.theme.LauncherRed
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 
 /**
  * Collapsed: just the single most relevant event. Expanded: every event for the day,
@@ -30,7 +30,7 @@ fun ExpandableEventSection(
     modifier: Modifier = Modifier,
     cardColor: Color = LauncherCard,
     icon: ImageVector = Icons.Filled.Event,
-    iconTint: Color = LauncherRed,
+    iconTint: Color = LocalAccentColor.current,
     badgeFor: (CalendarEvent) -> String? = { null }
 ) {
     if (collapsedEvent == null) return

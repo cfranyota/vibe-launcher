@@ -38,8 +38,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
-import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.ui.theme.LauncherWhite
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -150,7 +150,7 @@ fun BrightnessSlider(value: Float, onValueChange: (Float) -> Unit, modifier: Mod
         Slider(
             value = value,
             onValueChange = onValueChange,
-            colors = SliderDefaults.colors(thumbColor = LauncherRed, activeTrackColor = LauncherRed)
+            colors = SliderDefaults.colors(thumbColor = LocalAccentColor.current, activeTrackColor = LocalAccentColor.current)
         )
     }
 }
@@ -174,11 +174,11 @@ fun OpacitySlider(
             )
             Text(
                 text = "Glass",
-                color = LauncherRed,
+                color = LocalAccentColor.current,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(LauncherRed.copy(alpha = 0.15f))
+                    .background(LocalAccentColor.current.copy(alpha = 0.15f))
                     .clickable(onClick = onGlassPreset)
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             )
@@ -186,7 +186,7 @@ fun OpacitySlider(
         Slider(
             value = value,
             onValueChange = onValueChange,
-            colors = SliderDefaults.colors(thumbColor = LauncherRed, activeTrackColor = LauncherRed)
+            colors = SliderDefaults.colors(thumbColor = LocalAccentColor.current, activeTrackColor = LocalAccentColor.current)
         )
     }
 }

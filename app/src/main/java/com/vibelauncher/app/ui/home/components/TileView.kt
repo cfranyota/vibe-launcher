@@ -28,9 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.vibelauncher.app.R
 import com.vibelauncher.app.model.Tile
+import com.vibelauncher.app.model.TileTarget
 import com.vibelauncher.app.ui.theme.LauncherWhite
 import com.vibelauncher.app.ui.theme.TileCornerShape
-import com.vibelauncher.app.util.IntentDefaults
 
 /** Nominal bounds for a tile's size. The real ceiling on any given screen is enforced at
  *  render time by HomeScreen's runtime-measured `dynamicMaxSizeDp` (see TileGrid/HomeScreen),
@@ -77,12 +77,14 @@ fun TileView(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // The icon is fixed to the slot's category and never changes when the slot is
-        // reassigned to a different app - only the label below updates. The notification
-        // badge is anchored to this box (sized to the icon itself), not the whole tile,
-        // so it sits right at the icon's corner instead of drifting off to the tile edge.
+        // The notification badge is anchored to this box (sized to the icon itself), not
+        // the whole tile, so it sits right at the icon's corner instead of drifting off
+        // to the tile edge.
         Box(contentAlignment = Alignment.TopEnd) {
             if (iconOverride != null) {
+                // App tiles always arrive here with a real Drawable from
+                // HomeViewModel.iconFor; BuiltIn Note/To-Do only arrive here when a
+                // manual pack icon has been assigned to them.
                 val painter = remember(iconOverride) { BitmapPainter(iconOverride.toBitmap().asImageBitmap()) }
                 Image(
                     painter = painter,
@@ -90,8 +92,9 @@ fun TileView(
                     modifier = Modifier.size(28.dp)
                 )
             } else {
+                val kind = (tile.target as TileTarget.BuiltIn).kind
                 Icon(
-                    imageVector = builtInIcon(IntentDefaults.actionForSlot(tile.id)),
+                    imageVector = builtInIcon(kind),
                     contentDescription = tile.label,
                     tint = LauncherWhite,
                     modifier = Modifier.size(28.dp)

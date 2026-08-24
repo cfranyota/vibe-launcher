@@ -1,9 +1,11 @@
 package com.vibelauncher.app.data.apps
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.graphics.drawable.Drawable
 
 class InstalledAppsRepository(private val context: Context) {
 
@@ -11,6 +13,12 @@ class InstalledAppsRepository(private val context: Context) {
         return runCatching { getLaunchableAppsViaLauncherApps() }
             .getOrElse { getLaunchableAppsViaPackageManager() }
     }
+
+    /** Best-effort real-icon lookup by component, for tiles not already covered by a
+     *  loaded AppInfo list. Wrapped in runCatching since the app may have been
+     *  uninstalled since the tile was assigned. */
+    fun iconFor(packageName: String, className: String): Drawable? =
+        runCatching { context.packageManager.getActivityIcon(ComponentName(packageName, className)) }.getOrNull()
 
     /** The API built specifically for launcher apps - more complete/reliable than a
      *  generic package query (e.g. surfaces apps a plain queryIntentActivities can miss).

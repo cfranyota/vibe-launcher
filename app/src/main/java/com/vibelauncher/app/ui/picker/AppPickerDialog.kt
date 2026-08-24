@@ -33,8 +33,8 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.vibelauncher.app.data.apps.AppInfo
-import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.ui.theme.LauncherWhite
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 
 @Composable
 fun AppPickerDialog(
@@ -75,7 +75,7 @@ fun AppPickerDialog(
                         Icon(
                             imageVector = Icons.Filled.RestartAlt,
                             contentDescription = null,
-                            tint = LauncherRed,
+                            tint = LocalAccentColor.current,
                             modifier = Modifier
                                 .size(40.dp)
                                 .padding(end = 12.dp)

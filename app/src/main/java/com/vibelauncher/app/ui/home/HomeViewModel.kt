@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.vibelauncher.app.data.apps.InstalledAppsRepository
 import com.vibelauncher.app.data.calendar.CalendarEvent
 import com.vibelauncher.app.data.calendar.CalendarRepository
 import com.vibelauncher.app.data.calendar.DayEvents
@@ -23,7 +24,6 @@ import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.model.TileTarget
 import com.vibelauncher.app.model.TodoItem
 import com.vibelauncher.app.ui.theme.LauncherCard
-import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.util.IntentDefaults
 import com.vibelauncher.app.util.PermissionUtils
 import androidx.compose.ui.graphics.toArgb
@@ -47,7 +47,8 @@ class HomeViewModel(
     private val tileRepository: TileRepository,
     private val settingsRepository: SettingsRepository,
     private val iconThemeRepository: IconThemeRepository,
-    private val todoRepository: TodoRepository
+    private val todoRepository: TodoRepository,
+    private val installedAppsRepository: InstalledAppsRepository
 ) : ViewModel() {
 
     private val clockTicker = flow {
@@ -68,10 +69,9 @@ class HomeViewModel(
     private val pickerForSlot = MutableStateFlow<Int?>(null)
     private val hasNotificationAccess = MutableStateFlow(NotificationBadgeRepository.hasNotificationAccess(appContext))
     private val iconThemePackage = MutableStateFlow("")
-    private val applyIconThemeToHomeTiles = MutableStateFlow(false)
     private val eventCardColorArgb = MutableStateFlow(LauncherCard.toArgb())
     private val eventCardColorEnabled = MutableStateFlow(false)
-    private val iconAccentColorArgb = MutableStateFlow(LauncherRed.toArgb())
+    private val iconAccentColorArgb = MutableStateFlow(0xFFF97316.toInt())
     private val iconAccentColorEnabled = MutableStateFlow(false)
     private val tileBorderEnabled = MutableStateFlow(false)
     private val tileBorderSizeStep = MutableStateFlow(5)
@@ -111,9 +111,6 @@ class HomeViewModel(
         }
         viewModelScope.launch {
             settingsRepository.iconThemePackage.collectLatest { iconThemePackage.value = it }
-        }
-        viewModelScope.launch {
-            settingsRepository.applyIconThemeToHomeTiles.collectLatest { applyIconThemeToHomeTiles.value = it }
         }
         viewModelScope.launch {
             settingsRepository.eventCardColor.collectLatest { eventCardColorArgb.value = it }
@@ -156,7 +153,6 @@ class HomeViewModel(
         hasNotificationAccess,
         NotificationBadgeRepository.activePackages,
         iconThemePackage,
-        applyIconThemeToHomeTiles,
         eventCardColorArgb,
         eventCardColorEnabled,
         tileBorderEnabled,
@@ -170,7 +166,7 @@ class HomeViewModel(
         @Suppress("UNCHECKED_CAST")
         val notificationPackages = values[12] as Set<String>
         @Suppress("UNCHECKED_CAST")
-        val todoItems = values[20] as List<TodoItem>
+        val todoItems = values[19] as List<TodoItem>
         // The Tasks bar is local to-dos only now - real calendar all-day events render in
         // the top (calendar) card instead (see HomeScreen). To-dos are a running list, not
         // tied to a calendar day, so they show every day, regardless of selectedDayOffset.
@@ -195,14 +191,13 @@ class HomeViewModel(
             hasNotificationAccess = values[11] as Boolean,
             notificationPackages = notificationPackages,
             iconThemePackage = values[13] as String,
-            applyIconThemeToHomeTiles = values[14] as Boolean,
-            eventCardColorArgb = values[15] as Int,
-            eventCardColorEnabled = values[16] as Boolean,
-            tileBorderEnabled = values[17] as Boolean,
-            tileBorderSizeStep = values[18] as Int,
-            vibeBarEnabled = values[19] as Boolean,
-            iconAccentColorArgb = values[21] as Int,
-            iconAccentColorEnabled = values[22] as Boolean
+            eventCardColorArgb = values[14] as Int,
+            eventCardColorEnabled = values[15] as Boolean,
+            tileBorderEnabled = values[16] as Boolean,
+            tileBorderSizeStep = values[17] as Int,
+            vibeBarEnabled = values[18] as Boolean,
+            iconAccentColorArgb = values[20] as Int,
+            iconAccentColorEnabled = values[21] as Boolean
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
@@ -277,14 +272,24 @@ class HomeViewModel(
         pickerForSlot.value = tile.id
     }
 
-    /** Null unless the opt-in is on, a theme is selected, and the tile resolves to an
-     *  app the pack actually covers - callers fall back to the fixed glyph otherwise. */
-    fun themedIconFor(tile: Tile): Drawable? {
-        if (!applyIconThemeToHomeTiles.value) return null
+    /** Resolves the real Drawable a tile should render, or null when TileView should fall
+     *  back to the fixed builtInIcon glyph. Theming is always attempted once a pack is
+     *  selected, no opt-in toggle - TileTarget.App tiles get the app's own real icon, or a
+     *  themed substitute when the pack covers that app; TileTarget.BuiltIn tiles get an
+     *  auto-matched pack icon by keyword (see IconThemeRepository.getAutoMatchedIcon), or
+     *  null (the fixed glyph) if the pack has nothing matching that action. */
+    fun iconFor(tile: Tile): Drawable? {
+        val target = tile.target
         val themePackage = iconThemePackage.value
-        if (themePackage.isBlank()) return null
-        return IntentDefaults.componentForTile(tile, appContext)
-            ?.let { iconThemeRepository.getThemedIcon(it, themePackage) }
+        if (target is TileTarget.BuiltIn) {
+            if (themePackage.isBlank()) return null
+            return iconThemeRepository.getAutoMatchedIcon(themePackage, target.kind)
+        }
+        target as TileTarget.App
+        if (themePackage.isNotBlank()) {
+            iconThemeRepository.getThemedIcon(ComponentName(target.packageName, target.className), themePackage)?.let { return it }
+        }
+        return installedAppsRepository.iconFor(target.packageName, target.className)
     }
 
     fun dismissPicker() {
@@ -293,14 +298,14 @@ class HomeViewModel(
 
     fun assignTile(slot: Int, label: String, iconKey: String, target: TileTarget) {
         viewModelScope.launch {
-            tileRepository.setTile(slot, label, iconKey, target)
+            tileRepository.setTileAt(slot, Tile(slot, label, iconKey, target))
             pickerForSlot.value = null
         }
     }
 
     fun resetTile(slot: Int) {
         viewModelScope.launch {
-            tileRepository.resetTile(slot)
+            tileRepository.setTileAt(slot, IntentDefaults.defaultTiles()[slot])
             pickerForSlot.value = null
         }
     }
@@ -312,11 +317,12 @@ class HomeViewModel(
         private val tileRepository: TileRepository,
         private val settingsRepository: SettingsRepository,
         private val iconThemeRepository: IconThemeRepository,
-        private val todoRepository: TodoRepository
+        private val todoRepository: TodoRepository,
+        private val installedAppsRepository: InstalledAppsRepository
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
-            return HomeViewModel(appContext, calendarRepository, weatherRepository, tileRepository, settingsRepository, iconThemeRepository, todoRepository) as T
+            return HomeViewModel(appContext, calendarRepository, weatherRepository, tileRepository, settingsRepository, iconThemeRepository, todoRepository, installedAppsRepository) as T
         }
     }
 }

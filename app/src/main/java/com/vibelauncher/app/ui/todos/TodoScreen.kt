@@ -59,8 +59,8 @@ import com.vibelauncher.app.model.TodoItem
 import com.vibelauncher.app.ui.theme.BadgeCornerShape
 import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
-import com.vibelauncher.app.ui.theme.LauncherRed
 import com.vibelauncher.app.ui.theme.LauncherWhite
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 import com.vibelauncher.app.ui.theme.TileCornerShape
 import java.util.concurrent.TimeUnit
 
@@ -90,7 +90,7 @@ fun TodoScreen(viewModel: TodoViewModel, onBack: () -> Unit) {
                     snackbarData = data,
                     containerColor = LauncherCard,
                     contentColor = LauncherWhite,
-                    actionColor = LauncherRed
+                    actionColor = LocalAccentColor.current
                 )
             }
         }
@@ -223,7 +223,7 @@ private fun FilterChip(label: String, active: Boolean, showDot: Boolean, onClick
     Row(
         modifier = Modifier
             .clickable { onClick() }
-            .border(1.dp, if (active) LauncherRed else LauncherMutedGray, BadgeCornerShape)
+            .border(1.dp, if (active) LocalAccentColor.current else LauncherMutedGray, BadgeCornerShape)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -231,7 +231,7 @@ private fun FilterChip(label: String, active: Boolean, showDot: Boolean, onClick
             Icon(
                 imageVector = Icons.Filled.FiberManualRecord,
                 contentDescription = null,
-                tint = LauncherRed,
+                tint = LocalAccentColor.current,
                 modifier = Modifier.size(8.dp)
             )
             Spacer(Modifier.width(6.dp))
@@ -262,7 +262,7 @@ private fun AddTaskRow(onSubmit: (String) -> Unit) {
         value = text,
         onValueChange = { text = it },
         placeholder = { Text("add a task", color = LauncherMutedGray) },
-        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, tint = LauncherRed) },
+        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, tint = LocalAccentColor.current) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { submit() }),
@@ -273,7 +273,7 @@ private fun AddTaskRow(onSubmit: (String) -> Unit) {
             unfocusedIndicatorColor = Color.Transparent,
             focusedTextColor = LauncherWhite,
             unfocusedTextColor = LauncherWhite,
-            cursorColor = LauncherRed
+            cursorColor = LocalAccentColor.current
         ),
         shape = BadgeCornerShape,
         modifier = Modifier
@@ -308,12 +308,12 @@ private fun TodoRow(todo: TodoItem, selected: Boolean, onSelect: () -> Unit) {
                 .padding(horizontal = 12.dp)
         )
         if (todo.starred) {
-            Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = LauncherRed, modifier = Modifier.size(16.dp))
+            Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = LocalAccentColor.current, modifier = Modifier.size(16.dp))
         } else {
             Icon(
                 imageVector = Icons.Filled.FiberManualRecord,
                 contentDescription = null,
-                tint = LauncherRed,
+                tint = LocalAccentColor.current,
                 modifier = Modifier.size(8.dp)
             )
         }

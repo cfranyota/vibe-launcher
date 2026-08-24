@@ -3,6 +3,7 @@ package com.vibelauncher.app.data.settings
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -11,7 +12,6 @@ import kotlinx.coroutines.flow.map
 private val Context.settingsDataStore by preferencesDataStore(name = "settings_prefs")
 private val ZIP_CODE_KEY = stringPreferencesKey("zip_code")
 private val ICON_THEME_PACKAGE_KEY = stringPreferencesKey("icon_theme_package")
-private val APPLY_ICON_THEME_TO_HOME_TILES_KEY = booleanPreferencesKey("apply_icon_theme_to_home_tiles")
 private val EVENT_CARD_COLOR_KEY = intPreferencesKey("event_card_color")
 private val EVENT_CARD_COLOR_ENABLED_KEY = booleanPreferencesKey("event_card_color_enabled")
 private val TILE_BORDER_ENABLED_KEY = booleanPreferencesKey("tile_border_enabled")
@@ -19,6 +19,8 @@ private val TILE_BORDER_SIZE_STEP_KEY = intPreferencesKey("tile_border_size_step
 private val VIBE_BAR_ENABLED_KEY = booleanPreferencesKey("vibe_bar_enabled")
 private val ICON_ACCENT_COLOR_KEY = intPreferencesKey("icon_accent_color")
 private val ICON_ACCENT_COLOR_ENABLED_KEY = booleanPreferencesKey("icon_accent_color_enabled")
+private val ACCENT_COLOR_KEY = intPreferencesKey("accent_color")
+private val FONT_SCALE_KEY = floatPreferencesKey("font_scale")
 
 /** Default event-card color, matching `LauncherCard` in ui/theme/Color.kt (0xFF1A1A1A) -
  *  duplicated as a raw constant here so this data-layer file doesn't need to depend on
@@ -32,6 +34,15 @@ private const val DEFAULT_ICON_ACCENT_COLOR = 0xFFEF4444.toInt()
 /** Default border-size step on the 1-10 scale (see TileView.kt's resolveTileSizeDp) - the
  *  midpoint, not the max. */
 private const val DEFAULT_TILE_BORDER_SIZE_STEP = 5
+
+/** New app-wide accent default - Tailwind orange-500, chosen to sit at roughly the same
+ *  lightness/chroma band as the outgoing LauncherRed (Tailwind red-500) so existing
+ *  contrast assumptions against LauncherBlack/LauncherCard/LauncherWhite still hold. */
+private const val DEFAULT_ACCENT_COLOR = 0xFFF97316.toInt()
+
+/** 1.0 = no adjustment - matches Android's own fontScale semantics so it composes
+ *  multiplicatively with the OS accessibility font scale instead of replacing it. */
+private const val DEFAULT_FONT_SCALE = 1.0f
 
 class SettingsRepository(private val context: Context) {
 
@@ -48,13 +59,6 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setIconThemePackage(packageName: String) {
         context.settingsDataStore.edit { it[ICON_THEME_PACKAGE_KEY] = packageName }
-    }
-
-    /** Off by default - home tiles keep their fixed glyphs unless explicitly opted in. */
-    val applyIconThemeToHomeTiles = context.settingsDataStore.data.map { it[APPLY_ICON_THEME_TO_HOME_TILES_KEY] ?: false }
-
-    suspend fun setApplyIconThemeToHomeTiles(enabled: Boolean) {
-        context.settingsDataStore.edit { it[APPLY_ICON_THEME_TO_HOME_TILES_KEY] = enabled }
     }
 
     /** Packed ARGB for the home-screen Calendar/Task cards. Low alpha is the "glass" look -
@@ -107,5 +111,19 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setIconAccentColorEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[ICON_ACCENT_COLOR_ENABLED_KEY] = enabled }
+    }
+
+    /** Packed ARGB for the app-wide accent - replaces every screen's old fixed LauncherRed
+     *  (see LocalAccentColor). */
+    val accentColor = context.settingsDataStore.data.map { it[ACCENT_COLOR_KEY] ?: DEFAULT_ACCENT_COLOR }
+
+    suspend fun setAccentColor(argb: Int) {
+        context.settingsDataStore.edit { it[ACCENT_COLOR_KEY] = argb }
+    }
+
+    val fontScale = context.settingsDataStore.data.map { it[FONT_SCALE_KEY] ?: DEFAULT_FONT_SCALE }
+
+    suspend fun setFontScale(scale: Float) {
+        context.settingsDataStore.edit { it[FONT_SCALE_KEY] = scale }
     }
 }
