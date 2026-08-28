@@ -8,8 +8,8 @@ import java.net.URL
 import kotlin.math.roundToInt
 
 /**
- * Zippopotam.us (US zip -> lat/lon) + Open-Meteo (lat/lon -> current conditions).
- * Both are free, keyless APIs - fine for a personal-use launcher.
+ * Zippopotam.us (US zip or Canadian postal code -> lat/lon) + Open-Meteo (lat/lon -> current
+ * conditions). Both are free, keyless APIs - fine for a personal-use launcher.
  */
 class OpenMeteoWeatherRepository : WeatherRepository {
 
@@ -18,8 +18,18 @@ class OpenMeteoWeatherRepository : WeatherRepository {
         fetchWeather(lat, lon)
     }
 
+    /** US zips go straight to Zippopotam.us's /us/ lookup unchanged; anything else is
+     *  treated as a Canadian postal code - normalized (spaces stripped, uppercased) and
+     *  truncated to the 3-character FSA that Zippopotam.us's /ca/ lookup expects (e.g.
+     *  "K1A" from "K1A 0B1"). */
     private fun geocodeZip(zipCode: String): Pair<Double, Double> {
-        val json = JSONObject(httpGet("https://api.zippopotam.us/us/${zipCode.trim()}"))
+        val compact = zipCode.trim().replace(" ", "").uppercase()
+        val (countryPath, lookupCode) = if (compact.matches(Regex("^\\d{5}$"))) {
+            "us" to compact
+        } else {
+            "ca" to compact.take(3)
+        }
+        val json = JSONObject(httpGet("https://api.zippopotam.us/$countryPath/$lookupCode"))
         val place = json.getJSONArray("places").getJSONObject(0)
         return place.getString("latitude").toDouble() to place.getString("longitude").toDouble()
     }

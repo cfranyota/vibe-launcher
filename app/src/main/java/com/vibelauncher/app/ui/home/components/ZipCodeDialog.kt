@@ -12,6 +12,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
 
+private val US_ZIP_REGEX = Regex("^\\d{5}$")
+private val CA_POSTAL_REGEX = Regex("^[A-Z]\\d[A-Z]\\d[A-Z]\\d$")
+
+/** Accepts either a US 5-digit zip or a Canadian postal code (space optional, e.g. both
+ *  "K1A 0B1" and "K1A0B1" are valid). */
+private fun isValidPostalCode(raw: String): Boolean {
+    val compact = raw.replace(" ", "").uppercase()
+    return US_ZIP_REGEX.matches(compact) || CA_POSTAL_REGEX.matches(compact)
+}
+
 @Composable
 fun ZipCodeDialog(
     currentZipCode: String,
@@ -26,16 +36,19 @@ fun ZipCodeDialog(
         text = {
             OutlinedTextField(
                 value = value,
-                onValueChange = { if (it.length <= 5) value = it.filter { c -> c.isDigit() } },
-                label = { Text("Zip code") },
+                onValueChange = { input ->
+                    val filtered = input.filter { c -> c.isLetterOrDigit() || c == ' ' }.uppercase()
+                    if (filtered.length <= 7) value = filtered
+                },
+                label = { Text("Zip / postal code") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii)
             )
         },
         confirmButton = {
             TextButton(
                 onClick = { onSave(value) },
-                enabled = value.length == 5
+                enabled = isValidPostalCode(value)
             ) { Text("Save") }
         },
         dismissButton = {
