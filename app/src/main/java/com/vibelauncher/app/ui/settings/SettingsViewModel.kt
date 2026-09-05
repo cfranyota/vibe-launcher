@@ -51,6 +51,16 @@ class SettingsViewModel(
                 _uiState.value = _uiState.value.copy(homeIconsStayDefault = enabled)
             }
         }
+        viewModelScope.launch {
+            settingsRepository.monkEssentialsOnlyEnabled.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(monkEssentialsOnlyEnabled = enabled)
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.monkHideSocialBrowserEnabled.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(monkHideSocialBrowserEnabled = enabled)
+            }
+        }
     }
 
     fun selectIconTheme(packageName: String) {
@@ -75,6 +85,14 @@ class SettingsViewModel(
 
     fun setHomeIconsStayDefault(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setHomeIconsStayDefault(enabled) }
+    }
+
+    fun setMonkEssentialsOnlyEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setMonkEssentialsOnlyEnabled(enabled) }
+    }
+
+    fun setMonkHideSocialBrowserEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setMonkHideSocialBrowserEnabled(enabled) }
     }
 
     class Factory(

@@ -111,7 +111,9 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     pickerViewModelFactory: AppPickerViewModel.Factory,
     onOpenDrawer: () -> Unit,
-    onOpenTodos: () -> Unit
+    onOpenTodos: () -> Unit,
+    onOpenHub: () -> Unit,
+    onOpenNotes: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showZipDialog by remember { mutableStateOf(false) }
@@ -160,6 +162,9 @@ fun HomeScreen(
     val homeShownAtMillis = remember { System.currentTimeMillis() }
     val guardedOnOpenDrawer: () -> Unit = {
         if (System.currentTimeMillis() - homeShownAtMillis > 500) onOpenDrawer()
+    }
+    val guardedOnOpenHub: () -> Unit = {
+        if (System.currentTimeMillis() - homeShownAtMillis > 500) onOpenHub()
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -314,6 +319,9 @@ fun HomeScreen(
                     .pointerInput(Unit) {
                         detectSwipeUpToOpenDrawer(onOpenDrawer = guardedOnOpenDrawer)
                     }
+                    // Swipe-left-to-open-Hub gesture disabled while Hub is still being
+                    // finished - detectSwipeLeftToOpenHub/guardedOnOpenHub/onOpenHub stay
+                    // wired below so this is a one-line revert once it's ready.
             ) {
                 TileGrid(
                     tiles = uiState.tiles,
@@ -322,7 +330,7 @@ fun HomeScreen(
                         // to (see IntentDefaults.intentFor's NOTE/TODO -> null branches) -
                         // Note opens the ephemeral NoteBubble, To-Do opens its local list.
                         when ((tile.target as? TileTarget.BuiltIn)?.kind) {
-                            BuiltInAction.NOTE -> showNoteBubble = true
+                            BuiltInAction.NOTE -> onOpenNotes()
                             BuiltInAction.TODO -> onOpenTodos()
                             else -> viewModel.onTileClick(tile)
                         }
@@ -517,6 +525,41 @@ private suspend fun PointerInputScope.detectSwipeUpToOpenDrawer(onOpenDrawer: ()
 
         if (dragging && abs(totalY) > abs(totalX) && totalY <= -SWIPE_THRESHOLD_PX) {
             onOpenDrawer()
+        }
+    }
+}
+
+/** Sibling to [detectSwipeUpToOpenDrawer] - same skeleton/threshold, horizontal-left
+ *  instead of vertical-up. Scoped to the tile-grid/DrawerHandle Column (not the header
+ *  day-swipe band above it), as its own independent pointerInput, so it can't collide with
+ *  detectHeaderDaySwipe's left-swipe-changes-day gesture or steal the drawer's up-swipe. */
+private suspend fun PointerInputScope.detectSwipeLeftToOpenHub(onOpenHub: () -> Unit) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val pointerId = down.id
+
+        var totalX = 0f
+        var totalY = 0f
+        var dragging = false
+
+        while (true) {
+            val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+            val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+            if (!change.pressed) break
+
+            totalX += change.position.x - change.previousPosition.x
+            totalY += change.position.y - change.previousPosition.y
+
+            if (!dragging && (abs(totalX) > viewConfiguration.touchSlop || abs(totalY) > viewConfiguration.touchSlop)) {
+                dragging = true
+            }
+            if (dragging) {
+                change.consume()
+            }
+        }
+
+        if (dragging && abs(totalX) > abs(totalY) && totalX <= -SWIPE_THRESHOLD_PX) {
+            onOpenHub()
         }
     }
 }

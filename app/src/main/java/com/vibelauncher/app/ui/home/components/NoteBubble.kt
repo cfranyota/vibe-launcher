@@ -22,11 +22,14 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -43,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,11 +60,19 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.vibelauncher.app.data.notes.NoteRepository
+import com.vibelauncher.app.model.NoteBlock
+import com.vibelauncher.app.model.NoteCategory
+import com.vibelauncher.app.model.NoteItem
+import com.vibelauncher.app.model.NoteSpan
+import com.vibelauncher.app.ui.notes.noteCategoryLabel
 import com.vibelauncher.app.ui.theme.LauncherBlack
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
 import com.vibelauncher.app.ui.theme.LauncherWhite
+import com.vibelauncher.app.ui.theme.LocalAccentColor
 import com.vibelauncher.app.ui.theme.VibeNoteColor
 import com.vibelauncher.app.util.IntentDefaults
+import kotlinx.coroutines.launch
 
 /**
  * A half-page scratchpad, not a saved note: type something, share it or copy it, and it's
@@ -73,9 +85,12 @@ fun NoteBubble(onDismiss: () -> Unit) {
     val clipboardManager = LocalClipboardManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
+    val noteRepository = remember { NoteRepository(context) }
+    val coroutineScope = rememberCoroutineScope()
 
     var text by remember { mutableStateOf(TextFieldValue()) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showCategoryMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         runCatching { focusRequester.requestFocus() }
@@ -133,6 +148,48 @@ fun NoteBubble(onDismiss: () -> Unit) {
                             enabled = text.text.isNotBlank()
                         ) {
                             Icon(Icons.Filled.ContentCopy, "Copy", tint = LauncherMutedGray)
+                        }
+                        Box {
+                            FilledIconButton(
+                                onClick = { showCategoryMenu = true },
+                                enabled = text.text.isNotBlank(),
+                                modifier = Modifier.padding(start = 8.dp),
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = LocalAccentColor.current,
+                                    contentColor = LauncherWhite
+                                )
+                            ) {
+                                Icon(Icons.Filled.Check, "Add to notes")
+                            }
+                            DropdownMenu(expanded = showCategoryMenu, onDismissRequest = { showCategoryMenu = false }) {
+                                NoteCategory.entries.forEach { category ->
+                                    DropdownMenuItem(
+                                        text = { Text(noteCategoryLabel(category)) },
+                                        onClick = {
+                                            showCategoryMenu = false
+                                            val body = text.text
+                                            val firstLine = body.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+                                            val note = NoteItem(
+                                                id = System.currentTimeMillis(),
+                                                title = firstLine.ifBlank { "Untitled" },
+                                                category = category,
+                                                blocks = listOf(NoteBlock(spans = listOf(NoteSpan(body)))),
+                                                createdAt = System.currentTimeMillis(),
+                                                updatedAt = System.currentTimeMillis()
+                                            )
+                                            // Save must complete before onDismiss() removes this
+                                            // composable from composition - coroutineScope is
+                                            // scoped to NoteBubble's own lifetime, so dismissing
+                                            // first would cancel the in-flight DataStore write.
+                                            coroutineScope.launch {
+                                                noteRepository.save(note)
+                                                text = TextFieldValue()
+                                                onDismiss()
+                                            }
+                                        }
+                                    )
+                                }
+                            }
                         }
                         FilledIconButton(
                             onClick = { IntentDefaults.shareText(context, text.text) },

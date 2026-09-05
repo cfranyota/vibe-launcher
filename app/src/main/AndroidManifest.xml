@@ -8,6 +8,13 @@
          another app, so these are requested at runtime the first time each is used. -->
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- Hub's call feed. -->
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <!-- Required to be eligible for the default SMS app role (Hub's message feed). -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_MMS" />
+    <uses-permission android:name="android.permission.RECEIVE_WAP_PUSH" />
 
     <!-- Without this, package-visibility rules (Android 11+) hide most installed apps
          from queryIntentActivities, so the app drawer/picker only shows a handful. -->
@@ -52,6 +59,64 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- Everything below is required for Android to consider this app eligible for the
+             default SMS app role (RoleManager.ROLE_SMS) - see data/sms/SmsRepository.kt and
+             the plan's Part 4a for the full picture. -->
+
+        <receiver
+            android:name=".service.sms.SmsDeliverReceiver"
+            android:permission="android.permission.BROADCAST_SMS"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_DELIVER" />
+            </intent-filter>
+        </receiver>
+
+        <!-- MMS is deliberately a no-op stub for now (declared only for role eligibility) -
+             full WAP-push/MMSC parsing is its own separate effort, out of scope here. -->
+        <receiver
+            android:name=".service.sms.MmsWapPushReceiver"
+            android:permission="android.permission.BROADCAST_WAP_PUSH"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.WAP_PUSH_DELIVER" />
+                <data android:mimeType="application/vnd.wap.mms-message" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".service.sms.HeadlessSmsSendService"
+            android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="sms" />
+                <data android:scheme="smsto" />
+                <data android:scheme="mms" />
+                <data android:scheme="mmsto" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".ui.sms.ComposeSmsActivity"
+            android:exported="true"
+            android:theme="@style/Theme.VibeLauncher">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SENDTO" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="sms" />
+                <data android:scheme="smsto" />
+                <data android:scheme="mms" />
+                <data android:scheme="mmsto" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

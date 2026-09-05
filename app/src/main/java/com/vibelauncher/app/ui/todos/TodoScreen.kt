@@ -1,8 +1,10 @@
 package com.vibelauncher.app.ui.todos
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,14 +16,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -53,10 +56,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vibelauncher.app.model.TodoItem
-import com.vibelauncher.app.ui.theme.BadgeCornerShape
 import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
 import com.vibelauncher.app.ui.theme.LauncherWhite
@@ -100,39 +103,36 @@ fun TodoScreen(viewModel: TodoViewModel, onBack: () -> Unit) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            TodoHeader(
-                uiState = uiState,
-                onBack = onBack,
-                onFilterSelected = viewModel::setFilter,
-                onDismissSelection = viewModel::onTaskDeselected,
-                onEdit = { viewModel.onEditTapped(it) },
-                onDelete = { viewModel.deleteTodo(it) },
-                onMarkDone = { viewModel.markDone(it) },
-                onToggleStarred = { viewModel.toggleStarred(it) }
-            )
+            TodoHeader(uiState = uiState, onBack = onBack, onSortSelected = viewModel::setSort)
 
-            AddTaskRow(onSubmit = viewModel::addTodo)
-
-            if (uiState.visibleTodos.isEmpty()) {
+            if (uiState.todos.isEmpty()) {
                 Text(
-                    text = if (uiState.filter == TodoFilter.OPEN) {
-                        "Nothing open - add a task above."
-                    } else {
-                        "No completed tasks yet."
-                    },
+                    text = "Nothing here yet - add a task below.",
                     color = LauncherMutedGray,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
                 )
-            } else {
-                LazyColumn {
-                    items(uiState.visibleTodos, key = { it.id }) { todo ->
-                        TodoRow(
-                            todo = todo,
-                            selected = todo.id == uiState.selectedTaskId,
-                            onSelect = { viewModel.onTaskSelected(todo.id) }
-                        )
-                    }
+            }
+
+            LazyColumn(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
+            ) {
+                items(uiState.sortedTodos, key = { it.id }) { todo ->
+                    TodoRow(
+                        todo = todo,
+                        menuOpen = todo.id == uiState.menuForTaskId,
+                        onToggleDone = { viewModel.toggleDone(todo) },
+                        onLongPress = { viewModel.onTaskLongPressed(todo.id) },
+                        onDismissMenu = viewModel::onDismissMenu,
+                        onEdit = { viewModel.onEditTapped(todo) },
+                        onDelete = { viewModel.deleteTodo(todo) },
+                        onToggleStarred = { viewModel.toggleStarred(todo) }
+                    )
+                }
+                item {
+                    AddTaskRow(onSubmit = viewModel::addTodo)
                 }
             }
         }
@@ -149,16 +149,9 @@ fun TodoScreen(viewModel: TodoViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun TodoHeader(
-    uiState: TodoUiState,
-    onBack: () -> Unit,
-    onFilterSelected: (TodoFilter) -> Unit,
-    onDismissSelection: () -> Unit,
-    onEdit: (TodoItem) -> Unit,
-    onDelete: (TodoItem) -> Unit,
-    onMarkDone: (TodoItem) -> Unit,
-    onToggleStarred: (TodoItem) -> Unit
-) {
+private fun TodoHeader(uiState: TodoUiState, onBack: () -> Unit, onSortSelected: (TodoSort) -> Unit) {
+    var sortMenuExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -168,80 +161,24 @@ private fun TodoHeader(
         IconButton(onClick = onBack) {
             Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back", tint = LauncherWhite)
         }
-        Text(
-            text = "to do",
-            color = LauncherWhite,
-            style = TitleTextStyle,
-            modifier = Modifier.weight(1f).padding(start = 8.dp)
-        )
-
-        val selectedTask = uiState.selectedTask
-        if (selectedTask != null) {
-            Box {
-                var menuExpanded by remember { mutableStateOf(true) }
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(imageVector = Icons.Filled.MoreVert, contentDescription = "Task actions", tint = LauncherWhite)
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = {
-                        menuExpanded = false
-                        onDismissSelection()
-                    }
-                ) {
-                    DropdownMenuItem(text = { Text("Edit") }, onClick = { menuExpanded = false; onEdit(selectedTask) })
-                    DropdownMenuItem(text = { Text("Delete") }, onClick = { menuExpanded = false; onDelete(selectedTask) })
-                    if (!selectedTask.done) {
-                        DropdownMenuItem(text = { Text("Mark done") }, onClick = { menuExpanded = false; onMarkDone(selectedTask) })
-                    }
-                    DropdownMenuItem(
-                        text = { Text(if (selectedTask.starred) "Unstar" else "Star") },
-                        onClick = { menuExpanded = false; onToggleStarred(selectedTask) }
-                    )
-                }
+        Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+            Text(text = "to do", color = LauncherWhite, style = TitleTextStyle)
+            Text(
+                text = "${uiState.openCount} open · ${uiState.doneCount} done",
+                color = LauncherMutedGray,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        Box {
+            IconButton(onClick = { sortMenuExpanded = true }) {
+                Icon(imageVector = Icons.Filled.Tune, contentDescription = "Sort", tint = LauncherWhite)
             }
-        } else {
-            FilterChip(
-                label = "${uiState.openCount} open",
-                active = uiState.filter == TodoFilter.OPEN,
-                showDot = true,
-                onClick = { onFilterSelected(TodoFilter.OPEN) }
-            )
-            Spacer(Modifier.width(8.dp))
-            FilterChip(
-                label = "${uiState.doneCount} done",
-                active = uiState.filter == TodoFilter.DONE,
-                showDot = false,
-                onClick = { onFilterSelected(TodoFilter.DONE) }
-            )
+            DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = { sortMenuExpanded = false }) {
+                DropdownMenuItem(text = { Text("Newest first") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.NEWEST) })
+                DropdownMenuItem(text = { Text("Oldest first") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.OLDEST) })
+                DropdownMenuItem(text = { Text("Starred first") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.STARRED_FIRST) })
+            }
         }
-    }
-}
-
-@Composable
-private fun FilterChip(label: String, active: Boolean, showDot: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .clickable { onClick() }
-            .border(1.dp, if (active) LocalAccentColor.current else LauncherMutedGray, BadgeCornerShape)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (showDot) {
-            Icon(
-                imageVector = Icons.Filled.FiberManualRecord,
-                contentDescription = null,
-                tint = LocalAccentColor.current,
-                modifier = Modifier.size(8.dp)
-            )
-            Spacer(Modifier.width(6.dp))
-        }
-        Text(
-            text = label,
-            color = if (active) LauncherWhite else LauncherMutedGray,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
-        )
     }
 }
 
@@ -275,50 +212,74 @@ private fun AddTaskRow(onSubmit: (String) -> Unit) {
             unfocusedTextColor = LauncherWhite,
             cursorColor = LocalAccentColor.current
         ),
-        shape = BadgeCornerShape,
+        shape = TileCornerShape,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
-            .border(1.dp, LauncherMutedGray, BadgeCornerShape)
+            .border(1.dp, LauncherMutedGray.copy(alpha = 0.3f), TileCornerShape)
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TodoRow(todo: TodoItem, selected: Boolean, onSelect: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onSelect() }
-            .background(if (selected) LauncherCard else Color.Transparent, TileCornerShape)
-            .padding(horizontal = 24.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Circle,
-            contentDescription = null,
-            tint = LauncherMutedGray,
-            modifier = Modifier.size(20.dp)
-        )
-        Text(
-            text = todo.text,
-            color = LauncherWhite,
-            style = MaterialTheme.typography.bodyLarge,
+private fun TodoRow(
+    todo: TodoItem,
+    menuOpen: Boolean,
+    onToggleDone: () -> Unit,
+    onLongPress: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onToggleStarred: () -> Unit
+) {
+    Box {
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 12.dp)
-        )
-        if (todo.starred) {
-            Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = LocalAccentColor.current, modifier = Modifier.size(16.dp))
-        } else {
-            Icon(
-                imageVector = Icons.Filled.FiberManualRecord,
-                contentDescription = null,
-                tint = LocalAccentColor.current,
-                modifier = Modifier.size(8.dp)
+                .fillMaxWidth()
+                .border(1.dp, LauncherMutedGray.copy(alpha = 0.3f), TileCornerShape)
+                .combinedClickable(onClick = onToggleDone, onLongClick = onLongPress)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (todo.done) {
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .background(LocalAccentColor.current, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = Icons.Filled.Check, contentDescription = null, tint = LauncherWhite, modifier = Modifier.size(14.dp))
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.Circle,
+                    contentDescription = null,
+                    tint = LauncherMutedGray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Text(
+                text = todo.text,
+                color = if (todo.done) LauncherMutedGray else LauncherWhite,
+                style = MaterialTheme.typography.bodyLarge,
+                textDecoration = if (todo.done) TextDecoration.LineThrough else null,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            )
+            if (todo.starred) {
+                Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = LocalAccentColor.current, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+            }
+            Text(text = todo.ageLabel(), color = LauncherMutedGray, style = MaterialTheme.typography.labelSmall)
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = onDismissMenu) {
+            DropdownMenuItem(text = { Text("Edit") }, onClick = { onDismissMenu(); onEdit() })
+            DropdownMenuItem(text = { Text("Delete") }, onClick = { onDismissMenu(); onDelete() })
+            DropdownMenuItem(
+                text = { Text(if (todo.starred) "Unstar" else "Star") },
+                onClick = { onDismissMenu(); onToggleStarred() }
             )
         }
-        Spacer(Modifier.width(4.dp))
-        Text(text = todo.ageLabel(), color = LauncherMutedGray, style = MaterialTheme.typography.labelSmall)
     }
 }
 

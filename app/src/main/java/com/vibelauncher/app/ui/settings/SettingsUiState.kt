@@ -9,5 +9,7 @@ data class SettingsUiState(
     val tileBorderSizeStep: Int = 5,
     val vibeBarEnabled: Boolean = true,
     val iconSizeStep: Int = 5,
-    val homeIconsStayDefault: Boolean = false
+    val homeIconsStayDefault: Boolean = false,
+    val monkEssentialsOnlyEnabled: Boolean = false,
+    val monkHideSocialBrowserEnabled: Boolean = false
 )

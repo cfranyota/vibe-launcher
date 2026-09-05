@@ -8,17 +8,21 @@ import androidx.lifecycle.viewModelScope
 import com.vibelauncher.app.data.apps.AppInfo
 import com.vibelauncher.app.data.apps.InstalledAppsRepository
 import com.vibelauncher.app.data.icontheme.IconThemeRepository
+import com.vibelauncher.app.data.monkmode.EssentialsAllowlistRepository
 import com.vibelauncher.app.data.settings.SettingsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AppDrawerViewModel(
     private val repository: InstalledAppsRepository,
     private val settingsRepository: SettingsRepository,
-    private val iconThemeRepository: IconThemeRepository
+    private val iconThemeRepository: IconThemeRepository,
+    private val essentialsAllowlistRepository: EssentialsAllowlistRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppDrawerUiState())
@@ -26,11 +30,33 @@ class AppDrawerViewModel(
 
     init {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(apps = repository.getLaunchableApps())
+            val apps = withContext(Dispatchers.IO) { repository.getLaunchableApps() }
+            // Computed once per app-list load, not per recomposition/filter pass - category
+            // and browser-resolution checks hit PackageManager, so this stays off the UI
+            // thread and isn't repeated on every keystroke in the search field.
+            val socialBrowser = withContext(Dispatchers.IO) {
+                apps.filter { repository.isSocialOrBrowser(it.packageName) }.map { it.packageName }.toSet()
+            }
+            _uiState.value = _uiState.value.copy(apps = apps, socialBrowserPackages = socialBrowser)
         }
         viewModelScope.launch {
             settingsRepository.iconThemePackage.collectLatest { themePackage ->
                 _uiState.value = _uiState.value.copy(iconThemePackage = themePackage)
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.monkEssentialsOnlyEnabled.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(monkEssentialsOnlyEnabled = enabled)
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.monkHideSocialBrowserEnabled.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(monkHideSocialBrowserEnabled = enabled)
+            }
+        }
+        viewModelScope.launch {
+            essentialsAllowlistRepository.allowlist.collectLatest { allowlist ->
+                _uiState.value = _uiState.value.copy(essentialsAllowlist = allowlist)
             }
         }
     }
@@ -51,11 +77,12 @@ class AppDrawerViewModel(
     class Factory(
         private val repository: InstalledAppsRepository,
         private val settingsRepository: SettingsRepository,
-        private val iconThemeRepository: IconThemeRepository
+        private val iconThemeRepository: IconThemeRepository,
+        private val essentialsAllowlistRepository: EssentialsAllowlistRepository
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
-            return AppDrawerViewModel(repository, settingsRepository, iconThemeRepository) as T
+            return AppDrawerViewModel(repository, settingsRepository, iconThemeRepository, essentialsAllowlistRepository) as T
         }
     }
 }

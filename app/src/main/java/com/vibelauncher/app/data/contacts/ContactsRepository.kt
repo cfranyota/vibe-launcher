@@ -15,6 +15,30 @@ class ContactsRepository(private val context: Context) {
         return runCatching { queryContacts(query) }.getOrDefault(emptyList())
     }
 
+    /** Reverse (number -> name) lookup, for Hub's message rows - the forward search above
+     *  matches by name prefix, which is the opposite direction. */
+    fun nameForNumber(phone: String): String? {
+        if (phone.isBlank()) return null
+        return runCatching {
+            val uri = ContactsContract.PhoneLookup.CONTENT_FILTER_URI.buildUpon()
+                .appendPath(phone)
+                .build()
+            context.contentResolver.query(
+                uri,
+                arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.DISPLAY_NAME))
+                } else {
+                    null
+                }
+            }
+        }.getOrNull()
+    }
+
     private fun queryContacts(query: String): List<ContactResult> {
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.Phone.CONTACT_ID,

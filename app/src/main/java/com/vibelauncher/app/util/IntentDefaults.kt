@@ -24,6 +24,35 @@ import com.vibelauncher.app.model.TileTarget
 object IntentDefaults {
     const val SLOT_COUNT = 8
 
+    /** Once Vibe Launcher itself holds the default-SMS-app role (see Hub's SmsRepository/
+     *  SmsDeliverReceiver), Telephony.Sms.getDefaultSmsPackage(context) returns THIS app's
+     *  own package - so the "Messages" tile must target Google Messages by name instead of
+     *  "whatever app currently holds the SMS role," or it becomes circular. */
+    const val GOOGLE_MESSAGES_PACKAGE = "com.google.android.apps.messaging"
+
+    /** Requests the default-SMS-app role for a *named* package, not the caller itself -
+     *  the counterpart to RoleManager.createRequestRoleIntent() (which can only request
+     *  the role for the calling app). This legacy action still works as a compatibility
+     *  shim on modern Android and always shows a system-owned confirmation dialog naming
+     *  the target app, so it's safe for a third-party app like this one to trigger on
+     *  another app's behalf - it can't silently reassign the role. */
+    fun requestSmsRoleFor(packageName: String): Intent =
+        Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT)
+            .putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, packageName)
+
+    /** Whether this app currently holds the default-SMS-app role. RoleManager.isRoleHeld()
+     *  is the source of truth on API 29+ - Telephony.Sms.getDefaultSmsPackage() is NOT a
+     *  reliable read on every device (observed returning null/stale here even right after
+     *  RoleManager confirms the role switched), so don't use it for state checks, only for
+     *  the legacy API 26-28 fallback where RoleManager doesn't exist yet. */
+    fun hasSmsRole(context: Context): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            context.getSystemService(android.app.role.RoleManager::class.java)?.isRoleHeld(android.app.role.RoleManager.ROLE_SMS) == true
+        } else {
+            Telephony.Sms.getDefaultSmsPackage(context) == context.packageName
+        }
+    }
+
     fun defaultTiles(): List<Tile> = listOf(
         Tile(0, "Note", "builtin:note", TileTarget.BuiltIn(BuiltInAction.NOTE)),
         Tile(1, "Calendar", "builtin:event", TileTarget.BuiltIn(BuiltInAction.EVENT)),
@@ -63,10 +92,16 @@ object IntentDefaults {
         }
         BuiltInAction.CALL -> Intent(Intent.ACTION_DIAL)
         BuiltInAction.MESSAGE -> {
-            // Launch the default SMS app's own main screen (conversation list) rather
-            // than ACTION_SENDTO, which always opens a blank compose screen.
-            val defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(context)
-            defaultSmsPackage?.let { context.packageManager.getLaunchIntentForPackage(it) }
+            // Always opens Google Messages specifically, not "whatever holds the default
+            // SMS role" - now that this app itself can hold that role (Hub), the old
+            // getDefaultSmsPackage lookup would circularly resolve to Vibe Launcher's own
+            // package. Falls back to the old role-based lookup (for the rare case this app
+            // doesn't hold the role and Messages isn't installed either), then a blank
+            // compose intent as the final fallback.
+            context.packageManager.getLaunchIntentForPackage(GOOGLE_MESSAGES_PACKAGE)
+                ?: Telephony.Sms.getDefaultSmsPackage(context)
+                    ?.takeIf { it != context.packageName }
+                    ?.let { context.packageManager.getLaunchIntentForPackage(it) }
                 ?: Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:"))
         }
         BuiltInAction.CAMERA -> Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
@@ -80,7 +115,9 @@ object IntentDefaults {
     fun packageForTile(tile: Tile, context: Context): String? = when (val target = tile.target) {
         is TileTarget.App -> target.packageName
         is TileTarget.BuiltIn -> when (target.kind) {
-            BuiltInAction.MESSAGE -> Telephony.Sms.getDefaultSmsPackage(context)
+            BuiltInAction.MESSAGE -> context.packageManager.getLaunchIntentForPackage(GOOGLE_MESSAGES_PACKAGE)
+                ?.let { GOOGLE_MESSAGES_PACKAGE }
+                ?: Telephony.Sms.getDefaultSmsPackage(context)?.takeIf { it != context.packageName }
             BuiltInAction.CALL -> {
                 val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
                 telecomManager?.defaultDialerPackage

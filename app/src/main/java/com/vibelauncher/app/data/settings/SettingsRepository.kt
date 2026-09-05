@@ -23,6 +23,8 @@ private val ACCENT_COLOR_KEY = intPreferencesKey("accent_color")
 private val FONT_SCALE_KEY = floatPreferencesKey("font_scale")
 private val ICON_SIZE_STEP_KEY = intPreferencesKey("icon_size_step")
 private val HOME_ICONS_STAY_DEFAULT_KEY = booleanPreferencesKey("home_icons_stay_default")
+private val MONK_ESSENTIALS_ONLY_ENABLED_KEY = booleanPreferencesKey("monk_essentials_only_enabled")
+private val MONK_HIDE_SOCIAL_BROWSER_ENABLED_KEY = booleanPreferencesKey("monk_hide_social_browser_enabled")
 
 /** Default event-card color, matching `LauncherCard` in ui/theme/Color.kt (0xFF1A1A1A) -
  *  duplicated as a raw constant here so this data-layer file doesn't need to depend on
@@ -148,5 +150,23 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setHomeIconsStayDefault(enabled: Boolean) {
         context.settingsDataStore.edit { it[HOME_ICONS_STAY_DEFAULT_KEY] = enabled }
+    }
+
+    /** Vibe Mode tier 1 - off by default. When on, the app drawer only shows apps on the
+     *  user's own essentials allowlist (see EssentialsAllowlistRepository). */
+    val monkEssentialsOnlyEnabled = context.settingsDataStore.data.map { it[MONK_ESSENTIALS_ONLY_ENABLED_KEY] ?: false }
+
+    suspend fun setMonkEssentialsOnlyEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[MONK_ESSENTIALS_ONLY_ENABLED_KEY] = enabled }
+    }
+
+    /** Vibe Mode tier 2 - off by default. When on, apps detected as social media or a
+     *  browser (see InstalledAppsRepository.isSocialOrBrowser) are removed from the drawer
+     *  entirely, not just hidden behind a filter. Independent of the essentials tier above -
+     *  either, both, or neither can be on at once. */
+    val monkHideSocialBrowserEnabled = context.settingsDataStore.data.map { it[MONK_HIDE_SOCIAL_BROWSER_ENABLED_KEY] ?: false }
+
+    suspend fun setMonkHideSocialBrowserEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[MONK_HIDE_SOCIAL_BROWSER_ENABLED_KEY] = enabled }
     }
 }

@@ -1,0 +1,119 @@
+package com.vibelauncher.app.ui.settings
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
+import com.vibelauncher.app.data.apps.AppInfo
+import com.vibelauncher.app.ui.theme.LauncherMutedGray
+import com.vibelauncher.app.ui.theme.LauncherWhite
+import com.vibelauncher.app.ui.theme.LocalAccentColor
+import com.vibelauncher.app.ui.theme.settingsTypography
+
+@Composable
+fun EmailAppsScreen(viewModel: EmailAppsViewModel, onBack: () -> Unit) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    MaterialTheme(typography = settingsTypography()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back", tint = LauncherWhite)
+                }
+                Text(
+                    text = "email apps",
+                    color = LauncherWhite,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f).padding(start = 8.dp)
+                )
+            }
+            Text(
+                text = "Checked apps' notifications show under Hub's email tab instead of apps.",
+                color = LauncherMutedGray,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp)
+            )
+            OutlinedTextField(
+                value = uiState.query,
+                onValueChange = viewModel::onQueryChange,
+                placeholder = { Text("Search apps") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+            )
+            LazyColumn {
+                items(uiState.apps, key = { it.packageName }) { app ->
+                    EmailAppRow(
+                        app = app,
+                        checked = app.packageName in uiState.selectedPackages,
+                        onToggle = { viewModel.toggle(app) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmailAppRow(app: AppInfo, checked: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val painter = remember(app.packageName) { BitmapPainter(app.icon.toBitmap().asImageBitmap()) }
+            Image(painter = painter, contentDescription = app.label, modifier = Modifier.size(32.dp))
+            Text(
+                text = app.label,
+                color = LauncherWhite,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 16.dp)
+            )
+        }
+        Checkbox(
+            checked = checked,
+            onCheckedChange = { onToggle() },
+            colors = CheckboxDefaults.colors(checkedColor = LocalAccentColor.current)
+        )
+    }
+}

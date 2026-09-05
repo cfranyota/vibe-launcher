@@ -3,15 +3,45 @@ package com.vibelauncher.app.data.apps
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.net.Uri
+
+/** Package names Vibe Mode's "hide social/browser" tier removes even when
+ *  [ApplicationInfo.category] isn't declared - many apps, especially social ones, never set
+ *  a Play Store category, so [InstalledAppsRepository.isSocialOrBrowser]'s category check
+ *  alone under-matches in practice. Best-effort, not exhaustive. */
+private val KNOWN_SOCIAL_PACKAGES = setOf(
+    "com.instagram.android",
+    "com.zhiliaoapp.musically", // TikTok
+    "com.ss.android.ugc.trill", // TikTok (alt package seen in some regions)
+    "com.twitter.android",
+    "com.facebook.katana",
+    "com.snapchat.android",
+    "com.reddit.frontpage",
+    "com.pinterest",
+    "com.linkedin.android",
+    "com.whatsapp"
+)
 
 class InstalledAppsRepository(private val context: Context) {
 
     fun getLaunchableApps(): List<AppInfo> {
         return runCatching { getLaunchableAppsViaLauncherApps() }
             .getOrElse { getLaunchableAppsViaPackageManager() }
+    }
+
+    /** Used by Vibe Mode's "hide social/browser" tier. Category detection is best-effort
+     *  (see [KNOWN_SOCIAL_PACKAGES]); browser detection is exact - a browser is, by
+     *  definition, an app that resolves a plain https:// view intent. */
+    fun isSocialOrBrowser(packageName: String): Boolean {
+        if (packageName in KNOWN_SOCIAL_PACKAGES) return true
+        val appInfo = runCatching { context.packageManager.getApplicationInfo(packageName, 0) }.getOrNull()
+        if (appInfo?.category == ApplicationInfo.CATEGORY_SOCIAL) return true
+        val viewIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).setPackage(packageName)
+        return viewIntent.resolveActivity(context.packageManager) != null
     }
 
     /** Best-effort real-icon lookup by component, for tiles not already covered by a

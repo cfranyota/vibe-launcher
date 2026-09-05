@@ -34,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
@@ -50,6 +51,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,9 +81,16 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.vibelauncher.app.data.apps.AppInfo
 import com.vibelauncher.app.data.apps.InstalledAppsRepository
+import com.vibelauncher.app.data.calendar.CalendarRepository
 import com.vibelauncher.app.data.contacts.ContactResult
 import com.vibelauncher.app.data.contacts.ContactsRepository
+import com.vibelauncher.app.data.lettershortcuts.LetterShortcut
+import com.vibelauncher.app.data.lettershortcuts.LetterShortcutType
+import com.vibelauncher.app.data.lettershortcuts.LetterShortcutsRepository
 import com.vibelauncher.app.data.todos.TodoRepository
+import com.vibelauncher.app.features.ask.AskQuestionType
+import com.vibelauncher.app.features.ask.formatAskAnswer
+import com.vibelauncher.app.features.ask.matchQuestionPattern
 import com.vibelauncher.app.features.vibebar.VIBE_BAR_COMMAND_PREFIXES
 import com.vibelauncher.app.features.vibebar.VIBE_BAR_NOTE_PREFIX
 import com.vibelauncher.app.features.vibebar.parseVibeBarInput
@@ -96,13 +105,16 @@ import com.vibelauncher.app.ui.theme.LauncherWhite
 import com.vibelauncher.app.ui.theme.LocalAccentColor
 import com.vibelauncher.app.ui.theme.settingsTypography
 import com.vibelauncher.app.util.IntentDefaults
+import com.vibelauncher.app.util.PermissionUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val VIBE_BAR_MIN_HEIGHT_DP = 56
 private const val CONFIRMATION_DISPLAY_MS = 1100L
+private const val LETTER_HOLD_THRESHOLD_MS = 500L
 
 /**
  * A command input that's invisible until you start typing on a hardware keyboard, then
@@ -110,7 +122,8 @@ private const val CONFIRMATION_DISPLAY_MS = 1100L
  * The first typed character is a command prefix routing to a quick action: '@' text a
  * contact, '#' call a contact, '-' add a to-do, '/' open a scratch note (NoteBubble -
  * never saved by Vibe Bar itself), '+' add a calendar event, '?' search/launch an
- * installed app, no prefix runs a web search. '@'/'#' execute directly
+ * installed app (or, for a small fixed set of recognized questions, answers on-device from
+ * local data instead - see features/ask), no prefix runs a web search. '@'/'#' execute directly
  * (SmsManager/TelecomManager); '-' saves into Vibe Launcher's own local to-do store;
  * '+' hands off to the Calendar app, same as ever.
  */
@@ -125,6 +138,8 @@ fun VibeBar(
     val contactsRepository = remember { ContactsRepository(context) }
     val installedAppsRepository = remember { InstalledAppsRepository(context) }
     val todoRepository = remember { TodoRepository(context) }
+    val calendarRepository = remember { CalendarRepository(context) }
+    val letterShortcutsRepository = remember { LetterShortcutsRepository(context) }
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
@@ -147,17 +162,32 @@ fun VibeBar(
     var hasCallPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED)
     }
+    var hasCalendarPermission by remember { mutableStateOf(PermissionUtils.hasCalendarPermission(context)) }
     var pendingSms by remember { mutableStateOf<Pair<String, String>?>(null) }
     var pendingCall by remember { mutableStateOf<String?>(null) }
     var installedApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    // Hold-a-letter shortcut tracking: which letter's KeyDown is still pending a decision
+    // (either the hold threshold fires, or KeyUp arrives first and it's treated as a tap),
+    // and whether the hold action already fired for it (so KeyUp knows to swallow, not
+    // also open Vibe Bar).
+    var pendingHoldLetter by remember { mutableStateOf<Char?>(null) }
+    var pendingHoldFired by remember { mutableStateOf(false) }
+    var pendingHoldJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(Unit) {
         installedApps = withContext(Dispatchers.IO) { installedAppsRepository.getLaunchableApps() }
     }
 
+    val letterShortcuts by letterShortcutsRepository.shortcuts.collectAsState(initial = emptyList())
+    val letterShortcutsByLetter = remember(letterShortcuts) { letterShortcuts.associateBy { it.letter } }
+
     val contactsPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasContactsPermission = granted }
+
+    val calendarPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> hasCalendarPermission = granted }
 
     val smsPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -243,8 +273,24 @@ fun VibeBar(
             emptyList()
         }
     }
-    val appResults = remember(prefix, searchTerm, installedApps) {
-        if (prefix == '?' && searchTerm.isNotBlank()) {
+    // '?' first tries a small fixed set of known question shapes (on-device only, no LLM) -
+    // only falls back to app search when the typed text isn't a recognized question, so
+    // '?' app search stays fully intact for everything else.
+    val askQuestionType = remember(prefix, payload) {
+        if (prefix == '?') matchQuestionPattern(payload) else null
+    }
+    var askAnswer by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(askQuestionType, hasCalendarPermission) {
+        askAnswer = if (askQuestionType != null && hasCalendarPermission) {
+            withContext(Dispatchers.IO) {
+                formatAskAnswer(calendarRepository.getEventsForDay(0), askQuestionType, System.currentTimeMillis())
+            }
+        } else {
+            null
+        }
+    }
+    val appResults = remember(prefix, searchTerm, installedApps, askQuestionType) {
+        if (prefix == '?' && searchTerm.isNotBlank() && askQuestionType == null) {
             installedApps.filter { it.label.startsWith(searchTerm, ignoreCase = true) }.take(5)
         } else {
             emptyList()
@@ -269,6 +315,36 @@ fun VibeBar(
         } else {
             pendingCall = phone
             callPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
+        }
+    }
+
+    fun runLetterShortcut(shortcut: LetterShortcut) {
+        when (shortcut.type) {
+            LetterShortcutType.OPEN_APP -> {
+                val pkg = shortcut.packageName
+                val cls = shortcut.className
+                if (pkg != null && cls != null) {
+                    runCatching {
+                        context.startActivity(
+                            Intent().setComponent(ComponentName(pkg, cls)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                }
+            }
+            LetterShortcutType.CALL_CONTACT -> {
+                val phone = shortcut.phone ?: return
+                callToConfirm = ContactResult(shortcut.contactId ?: 0L, shortcut.label, phone, "")
+            }
+            LetterShortcutType.MESSAGE_CONTACT -> {
+                // Lands in the same '@'-locked-contact state a tapped contact suggestion
+                // would, so the user types the message themselves rather than a shortcut
+                // silently sending a blank text.
+                val phone = shortcut.phone ?: return
+                clearCommand()
+                lockedPrefix = '@'
+                selectedContact = ContactResult(shortcut.contactId ?: 0L, shortcut.label, phone, "")
+                expanded = true
+            }
         }
     }
 
@@ -328,16 +404,68 @@ fun VibeBar(
                 .size(1.dp)
                 .focusRequester(armedFocusRequester)
                 .onPreviewKeyEvent { event ->
-                    if (expanded || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                    val typed = printableHardwareText(event.nativeKeyEvent) ?: return@onPreviewKeyEvent false
-                    if (typed == VIBE_BAR_NOTE_PREFIX.toString()) {
-                        onOpenNote()
-                        return@onPreviewKeyEvent true
+                    if (expanded) return@onPreviewKeyEvent false
+                    val nativeEvent = event.nativeKeyEvent
+                    val keyCode = nativeEvent.keyCode
+                    val letter = if (keyCode in android.view.KeyEvent.KEYCODE_A..android.view.KeyEvent.KEYCODE_Z) {
+                        'A' + (keyCode - android.view.KeyEvent.KEYCODE_A)
+                    } else {
+                        null
                     }
-                    clearCommand()
-                    text = TextFieldValue(typed, selection = TextRange(typed.length))
-                    expanded = true
-                    true
+                    val shortcut = letter?.let { letterShortcutsByLetter[it] }
+
+                    fun openWithTypedChar(): Boolean {
+                        val typed = printableHardwareText(nativeEvent) ?: return false
+                        if (typed == VIBE_BAR_NOTE_PREFIX.toString()) {
+                            onOpenNote()
+                            return true
+                        }
+                        clearCommand()
+                        text = TextFieldValue(typed, selection = TextRange(typed.length))
+                        expanded = true
+                        return true
+                    }
+
+                    when (event.type) {
+                        KeyEventType.KeyDown -> {
+                            // Letters with an assigned shortcut can't open Vibe Bar instantly
+                            // on KeyDown - holding vs. tapping can only be told apart once the
+                            // key is released (or the hold timer fires), so the open-trigger
+                            // moves to KeyUp for exactly these letters. Every other key
+                            // (including unassigned letters, the default/majority case) keeps
+                            // today's zero-latency instant-open behavior, unchanged.
+                            if (shortcut != null) {
+                                if (nativeEvent.repeatCount == 0) {
+                                    pendingHoldLetter = letter
+                                    pendingHoldFired = false
+                                    pendingHoldJob?.cancel()
+                                    pendingHoldJob = coroutineScope.launch {
+                                        delay(LETTER_HOLD_THRESHOLD_MS)
+                                        if (pendingHoldLetter == letter) {
+                                            pendingHoldFired = true
+                                            runLetterShortcut(shortcut)
+                                        }
+                                    }
+                                }
+                                return@onPreviewKeyEvent true
+                            }
+                            openWithTypedChar()
+                        }
+                        KeyEventType.KeyUp -> {
+                            if (letter != null && letter == pendingHoldLetter) {
+                                pendingHoldJob?.cancel()
+                                pendingHoldJob = null
+                                val fired = pendingHoldFired
+                                pendingHoldLetter = null
+                                pendingHoldFired = false
+                                if (!fired) openWithTypedChar()
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        else -> false
+                    }
                 }
                 .focusable()
         )
@@ -368,7 +496,8 @@ fun VibeBar(
                         ConfirmationPill(confirmationMessage!!)
                     } else {
                         val hasResults = contactResults.isNotEmpty() || appResults.isNotEmpty() ||
-                            (prefix in listOf('@', '#') && !hasContactsPermission)
+                            (prefix in listOf('@', '#') && !hasContactsPermission) ||
+                            askQuestionType != null
                         if (hasResults) {
                             Column(
                                 Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
@@ -401,6 +530,15 @@ fun VibeBar(
                                 if (prefix in listOf('@', '#') && !hasContactsPermission) {
                                     SuggestionRow(text = "Allow contacts access to search people", icon = Icons.Filled.Person) {
                                         contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                                    }
+                                }
+                                if (askQuestionType != null) {
+                                    if (!hasCalendarPermission) {
+                                        SuggestionRow(text = "Allow calendar access to answer", icon = Icons.Filled.CalendarMonth) {
+                                            calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                                        }
+                                    } else if (askAnswer != null) {
+                                        SuggestionRow(text = askAnswer!!, icon = Icons.Filled.CalendarMonth) { dismiss() }
                                     }
                                 }
                             }
