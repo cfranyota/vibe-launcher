@@ -143,9 +143,7 @@ fun VibeLauncherApp(navController: NavHostController = rememberNavController()) 
                     onOpenCardColor = { navController.navigate(ROUTE_CARD_COLOR) },
                     onOpenIconTheme = { navController.navigate(ROUTE_ICON_THEME) },
                     onOpenLetterShortcuts = { navController.navigate(ROUTE_LETTER_SHORTCUTS) },
-                    onOpenMonkMode = { navController.navigate(ROUTE_MONK_MODE) },
-                    onOpenHub = { navController.navigate(ROUTE_HUB) },
-                    onOpenEmailApps = { navController.navigate(ROUTE_EMAIL_APPS) }
+                    onOpenMonkMode = { navController.navigate(ROUTE_MONK_MODE) }
                 )
             }
             composable(ROUTE_LETTER_SHORTCUTS) {
