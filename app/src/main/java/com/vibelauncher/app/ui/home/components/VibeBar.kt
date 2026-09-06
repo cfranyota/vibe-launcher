@@ -33,8 +33,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
-import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
@@ -79,23 +77,27 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.vibelauncher.app.data.apps.AppInfo
-import com.vibelauncher.app.data.apps.InstalledAppsRepository
 import com.vibelauncher.app.data.calendar.CalendarRepository
 import com.vibelauncher.app.data.contacts.ContactResult
 import com.vibelauncher.app.data.contacts.ContactsRepository
 import com.vibelauncher.app.data.lettershortcuts.LetterShortcut
 import com.vibelauncher.app.data.lettershortcuts.LetterShortcutType
 import com.vibelauncher.app.data.lettershortcuts.LetterShortcutsRepository
+import com.vibelauncher.app.data.notes.NoteRepository
 import com.vibelauncher.app.data.todos.TodoRepository
-import com.vibelauncher.app.features.ask.AskQuestionType
-import com.vibelauncher.app.features.ask.formatAskAnswer
-import com.vibelauncher.app.features.ask.matchQuestionPattern
+import com.vibelauncher.app.features.vibebar.ParsedEvent
 import com.vibelauncher.app.features.vibebar.VIBE_BAR_COMMAND_PREFIXES
+import com.vibelauncher.app.features.vibebar.VIBE_BAR_EVENT_PREFIX
 import com.vibelauncher.app.features.vibebar.VIBE_BAR_NOTE_PREFIX
+import com.vibelauncher.app.features.vibebar.eventPreviewLabel
+import com.vibelauncher.app.features.vibebar.parseEventText
 import com.vibelauncher.app.features.vibebar.parseVibeBarInput
 import com.vibelauncher.app.features.vibebar.previewTextFor
 import com.vibelauncher.app.features.vibebar.printableHardwareText
+import com.vibelauncher.app.model.NoteBlock
+import com.vibelauncher.app.model.NoteCategory
+import com.vibelauncher.app.model.NoteItem
+import com.vibelauncher.app.model.NoteSpan
 import com.vibelauncher.app.ui.theme.BadgeCornerShape
 import com.vibelauncher.app.ui.theme.CardCornerShape
 import com.vibelauncher.app.ui.theme.LauncherBlack
@@ -119,25 +121,25 @@ private const val LETTER_HOLD_THRESHOLD_MS = 500L
 /**
  * A command input that's invisible until you start typing on a hardware keyboard, then
  * slides up from the bottom of the screen; deleting back to empty slides it away again.
- * The first typed character is a command prefix routing to a quick action: '@' text a
- * contact, '#' call a contact, '-' add a to-do, '/' open a scratch note (NoteBubble -
- * never saved by Vibe Bar itself), '+' add a calendar event, '?' search/launch an
- * installed app (or, for a small fixed set of recognized questions, answers on-device from
- * local data instead - see features/ask), no prefix runs a web search. '@'/'#' execute directly
- * (SmsManager/TelecomManager); '-' saves into Vibe Launcher's own local to-do store;
- * '+' hands off to the Calendar app, same as ever.
+ * One line, one action: the first typed character is a command prefix routing the rest of
+ * the line to a quick action - '@' text a contact, '#' call a contact, '-' add a to-do,
+ * '!' keep a note, '*' add a calendar event - and no prefix runs a web search.
+ *
+ * Every command completes without leaving the home screen: '@'/'#' execute directly
+ * (SmsManager/TelecomManager), '-' saves into the local to-do store, '!' saves into the
+ * Notes inbox, and '*' parses the typed date/time (see features/vibebar/EventTextParser)
+ * and writes the event straight into the user's calendar.
  */
 @Composable
 fun VibeBar(
     keyboardInputEnabled: Boolean,
-    onOpenNote: () -> Unit,
     openRequestToken: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val contactsRepository = remember { ContactsRepository(context) }
-    val installedAppsRepository = remember { InstalledAppsRepository(context) }
     val todoRepository = remember { TodoRepository(context) }
+    val noteRepository = remember { NoteRepository(context) }
     val calendarRepository = remember { CalendarRepository(context) }
     val letterShortcutsRepository = remember { LetterShortcutsRepository(context) }
     val focusManager = LocalFocusManager.current
@@ -162,10 +164,10 @@ fun VibeBar(
     var hasCallPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED)
     }
-    var hasCalendarPermission by remember { mutableStateOf(PermissionUtils.hasCalendarPermission(context)) }
+    var hasWriteCalendarPermission by remember { mutableStateOf(PermissionUtils.hasWriteCalendarPermission(context)) }
     var pendingSms by remember { mutableStateOf<Pair<String, String>?>(null) }
     var pendingCall by remember { mutableStateOf<String?>(null) }
-    var installedApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    var pendingEvent by remember { mutableStateOf<ParsedEvent?>(null) }
     // Hold-a-letter shortcut tracking: which letter's KeyDown is still pending a decision
     // (either the hold threshold fires, or KeyUp arrives first and it's treated as a tap),
     // and whether the hold action already fired for it (so KeyUp knows to swallow, not
@@ -174,10 +176,6 @@ fun VibeBar(
     var pendingHoldFired by remember { mutableStateOf(false) }
     var pendingHoldJob by remember { mutableStateOf<Job?>(null) }
 
-    LaunchedEffect(Unit) {
-        installedApps = withContext(Dispatchers.IO) { installedAppsRepository.getLaunchableApps() }
-    }
-
     val letterShortcuts by letterShortcutsRepository.shortcuts.collectAsState(initial = emptyList())
     val letterShortcutsByLetter = remember(letterShortcuts) { letterShortcuts.associateBy { it.letter } }
 
@@ -185,9 +183,27 @@ fun VibeBar(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasContactsPermission = granted }
 
+    fun persistEvent(event: ParsedEvent) {
+        coroutineScope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                calendarRepository.insertEvent(event.title, event.startMillis, event.endMillis, event.allDay)
+            }
+            if (saved) confirmationMessage = "saved to calendar"
+            else Toast.makeText(context, "Couldn't save event", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Inserting needs WRITE_CALENDAR, and finding a calendar to insert into needs
+    // READ_CALENDAR - requested together so a '*' command only ever prompts once.
     val calendarPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> hasCalendarPermission = granted }
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        hasWriteCalendarPermission = grants.values.all { it } ||
+            PermissionUtils.hasWriteCalendarPermission(context)
+        val draft = pendingEvent
+        pendingEvent = null
+        if (hasWriteCalendarPermission && draft != null) persistEvent(draft)
+    }
 
     val smsPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -255,17 +271,6 @@ fun VibeBar(
     }
     val previewPrefix = if (isKnownPrefixCommand) prefix else null
 
-    // '/' never renders inside Vibe Bar - it hands off to the standalone NoteBubble
-    // immediately. The common path (typing '/' as the very first hardware keystroke) is
-    // intercepted earlier, in the armed box below, so the bar never actually animates
-    // open for it; this covers the rarer path of reaching '/' while already expanded.
-    LaunchedEffect(prefix, expanded) {
-        if (expanded && prefix == VIBE_BAR_NOTE_PREFIX) {
-            onOpenNote()
-            dismiss()
-        }
-    }
-
     val contactResults = remember(prefix, searchTerm, hasContactsPermission, selectedContact) {
         if (prefix in listOf('@', '#') && hasContactsPermission && selectedContact == null && searchTerm.isNotBlank()) {
             contactsRepository.searchContacts(searchTerm)
@@ -273,28 +278,11 @@ fun VibeBar(
             emptyList()
         }
     }
-    // '?' first tries a small fixed set of known question shapes (on-device only, no LLM) -
-    // only falls back to app search when the typed text isn't a recognized question, so
-    // '?' app search stays fully intact for everything else.
-    val askQuestionType = remember(prefix, payload) {
-        if (prefix == '?') matchQuestionPattern(payload) else null
-    }
-    var askAnswer by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(askQuestionType, hasCalendarPermission) {
-        askAnswer = if (askQuestionType != null && hasCalendarPermission) {
-            withContext(Dispatchers.IO) {
-                formatAskAnswer(calendarRepository.getEventsForDay(0), askQuestionType, System.currentTimeMillis())
-            }
-        } else {
-            null
-        }
-    }
-    val appResults = remember(prefix, searchTerm, installedApps, askQuestionType) {
-        if (prefix == '?' && searchTerm.isNotBlank() && askQuestionType == null) {
-            installedApps.filter { it.label.startsWith(searchTerm, ignoreCase = true) }.take(5)
-        } else {
-            emptyList()
-        }
+
+    // Re-parsed on every keystroke so the breadcrumb can show the resolved date the moment
+    // enough of it has been typed ("*dentist mar 24 9a" → "event → Mar 24, 9:00 AM").
+    val parsedEvent = remember(prefix, payload) {
+        if (prefix == VIBE_BAR_EVENT_PREFIX && payload.isNotBlank()) parseEventText(payload) else null
     }
 
     fun sendDirectOrRequestAccess(phone: String, body: String, contactName: String) {
@@ -305,6 +293,17 @@ fun VibeBar(
         } else {
             pendingSms = phone to body
             smsPermissionLauncher.launch(Manifest.permission.SEND_SMS)
+        }
+    }
+
+    fun saveEventOrRequestAccess(event: ParsedEvent) {
+        if (hasWriteCalendarPermission) {
+            persistEvent(event)
+        } else {
+            pendingEvent = event
+            calendarPermissionLauncher.launch(
+                arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
+            )
         }
     }
 
@@ -354,15 +353,28 @@ fun VibeBar(
                 coroutineScope.launch { todoRepository.add(payload) }
                 confirmationMessage = "saved to to-do"
             }
-            VIBE_BAR_NOTE_PREFIX -> {} // '/' hands off to NoteBubble immediately, never reaches submit()
-            '+' -> if (payload.isNotBlank() && IntentDefaults.insertCalendarEvent(context, payload, allDay = false)) {
-                dismiss()
+            VIBE_BAR_NOTE_PREFIX -> if (payload.isNotBlank()) {
+                // Straight into the Notes inbox - one line, one action. The first line
+                // becomes the title, matching how the Notes app titles a new note; the
+                // category can be changed later in the editor.
+                val now = System.currentTimeMillis()
+                val note = NoteItem(
+                    id = now,
+                    title = payload.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+                        .ifBlank { "Untitled" },
+                    category = NoteCategory.PERSONAL,
+                    blocks = listOf(NoteBlock(spans = listOf(NoteSpan(payload)))),
+                    createdAt = now,
+                    updatedAt = now
+                )
+                coroutineScope.launch { noteRepository.save(note) }
+                confirmationMessage = "saved to notes"
             }
+            VIBE_BAR_EVENT_PREFIX -> parsedEvent?.let { saveEventOrRequestAccess(it) }
             '@' -> if (selectedContact != null && payload.isNotBlank()) {
                 sendDirectOrRequestAccess(selectedContact!!.phone, payload, selectedContact!!.name)
             }
             '#' -> {} // '#' acts directly on result tap, never reaches submit()
-            '?' -> {} // '?' acts directly on result tap, never reaches submit()
             else -> if (text.text.isNotBlank() && IntentDefaults.webSearch(context, text.text)) {
                 dismiss()
             }
@@ -416,10 +428,6 @@ fun VibeBar(
 
                     fun openWithTypedChar(): Boolean {
                         val typed = printableHardwareText(nativeEvent) ?: return false
-                        if (typed == VIBE_BAR_NOTE_PREFIX.toString()) {
-                            onOpenNote()
-                            return true
-                        }
                         clearCommand()
                         text = TextFieldValue(typed, selection = TextRange(typed.length))
                         expanded = true
@@ -495,9 +503,8 @@ fun VibeBar(
                     if (confirmationMessage != null) {
                         ConfirmationPill(confirmationMessage!!)
                     } else {
-                        val hasResults = contactResults.isNotEmpty() || appResults.isNotEmpty() ||
-                            (prefix in listOf('@', '#') && !hasContactsPermission) ||
-                            askQuestionType != null
+                        val hasResults = contactResults.isNotEmpty() ||
+                            (prefix in listOf('@', '#') && !hasContactsPermission)
                         if (hasResults) {
                             Column(
                                 Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
@@ -515,36 +522,16 @@ fun VibeBar(
                                         }
                                     }
                                 }
-                                appResults.forEach { app ->
-                                    SuggestionRow(text = app.label, icon = Icons.Filled.Apps) {
-                                        val launched = runCatching {
-                                            context.startActivity(
-                                                Intent()
-                                                    .setComponent(ComponentName(app.packageName, app.className))
-                                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            )
-                                        }.isSuccess
-                                        if (launched) dismiss()
-                                    }
-                                }
                                 if (prefix in listOf('@', '#') && !hasContactsPermission) {
                                     SuggestionRow(text = "Allow contacts access to search people", icon = Icons.Filled.Person) {
                                         contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
                                     }
                                 }
-                                if (askQuestionType != null) {
-                                    if (!hasCalendarPermission) {
-                                        SuggestionRow(text = "Allow calendar access to answer", icon = Icons.Filled.CalendarMonth) {
-                                            calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
-                                        }
-                                    } else if (askAnswer != null) {
-                                        SuggestionRow(text = askAnswer!!, icon = Icons.Filled.CalendarMonth) { dismiss() }
-                                    }
-                                }
                             }
                         }
 
-                        previewTextFor(previewPrefix, payload, selectedContact)?.let { preview ->
+                        val eventPreview = parsedEvent?.let { eventPreviewLabel(it) }
+                        previewTextFor(previewPrefix, payload, selectedContact, eventPreview)?.let { preview ->
                             Text(
                                 text = preview,
                                 color = LauncherMutedGray,
@@ -670,8 +657,22 @@ private fun VibeBarInputField(
     TextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text("Type, or use @ # - / + ?", color = LauncherMutedGray) },
-        modifier = modifier.focusRequester(focusRequester),
+        placeholder = { Text("Type, or use @ # - * !", color = LauncherMutedGray) },
+        // The field is multi-line (a note can wrap), so a hardware Enter would otherwise
+        // just insert a newline and no typed line could ever be run from the keyboard -
+        // the whole point on a keyboard phone. Enter runs the command; Shift+Enter still
+        // breaks the line. The matching KeyUp is swallowed too, or it lands in the field
+        // as a stray newline after the command has already been submitted.
+        modifier = modifier
+            .focusRequester(focusRequester)
+            .onPreviewKeyEvent { event ->
+                val nativeEvent = event.nativeKeyEvent
+                val isEnter = nativeEvent.keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+                    nativeEvent.keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER
+                if (!isEnter || nativeEvent.isShiftPressed) return@onPreviewKeyEvent false
+                if (event.type == KeyEventType.KeyDown) onSubmit()
+                true
+            },
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,
             unfocusedContainerColor = Color.Transparent,
@@ -681,11 +682,7 @@ private fun VibeBarInputField(
         visualTransformation = if (lockedPrefix == null) commandPrefixTransformation(accent) else VisualTransformation.None,
         maxLines = maxLines,
         keyboardOptions = KeyboardOptions(
-            imeAction = when {
-                prefix == VIBE_BAR_NOTE_PREFIX -> ImeAction.Default
-                prefix in VIBE_BAR_COMMAND_PREFIXES -> ImeAction.Send
-                else -> ImeAction.Search
-            }
+            imeAction = if (prefix in VIBE_BAR_COMMAND_PREFIXES) ImeAction.Send else ImeAction.Search
         ),
         keyboardActions = KeyboardActions(
             onSearch = { onSubmit() },

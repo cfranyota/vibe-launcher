@@ -2,8 +2,9 @@ package com.vibelauncher.app.features.vibebar
 
 import com.vibelauncher.app.data.contacts.ContactResult
 
-internal const val VIBE_BAR_NOTE_PREFIX = '/'
-internal val VIBE_BAR_COMMAND_PREFIXES = setOf('@', '#', '-', VIBE_BAR_NOTE_PREFIX, '+', '?')
+internal const val VIBE_BAR_NOTE_PREFIX = '!'
+internal const val VIBE_BAR_EVENT_PREFIX = '*'
+internal val VIBE_BAR_COMMAND_PREFIXES = setOf('@', '#', '-', VIBE_BAR_NOTE_PREFIX, VIBE_BAR_EVENT_PREFIX)
 
 internal data class VibeBarInput(
     val prefix: Char?,
@@ -23,14 +24,20 @@ internal fun parseVibeBarInput(text: String, lockedPrefix: Char? = null): VibeBa
 }
 
 /** Short breadcrumb line describing what submitting will do, shown above the input box.
- *  Null when there's nothing meaningful to preview yet - '#' (acts immediately on a tapped
- *  contact, never has a typed body) and '/' (hands off to NoteBubble immediately) never
- *  preview. */
-internal fun previewTextFor(prefix: Char?, payload: String, selectedContact: ContactResult?): String? = when {
+ *  Null when there's nothing meaningful to preview yet - '#' acts immediately on a tapped
+ *  contact and never has a typed body. [eventPreview] is the already-formatted date/time
+ *  for '*' (see [eventPreviewLabel]); it falls back to the raw text while the typed date
+ *  is still too incomplete to parse. */
+internal fun previewTextFor(
+    prefix: Char?,
+    payload: String,
+    selectedContact: ContactResult?,
+    eventPreview: String? = null
+): String? = when {
     prefix == '-' && payload.isNotBlank() -> "to-do → $payload"
-    prefix == '+' && payload.isNotBlank() -> "event → $payload"
+    prefix == VIBE_BAR_EVENT_PREFIX && payload.isNotBlank() -> "event → ${eventPreview ?: payload}"
+    prefix == VIBE_BAR_NOTE_PREFIX && payload.isNotBlank() -> "note → $payload"
     prefix == '@' && selectedContact != null -> "text → ${selectedContact.name}"
-    prefix == '?' && payload.isNotBlank() -> "open → $payload"
     prefix == null && payload.isNotBlank() -> "search → $payload"
     else -> null
 }

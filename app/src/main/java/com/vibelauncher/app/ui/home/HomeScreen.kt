@@ -50,7 +50,6 @@ import com.vibelauncher.app.ui.home.components.DrawerHandle
 import com.vibelauncher.app.ui.home.components.ExpandableEventSection
 import com.vibelauncher.app.ui.home.components.MAX_TILE_SIZE_DP
 import com.vibelauncher.app.ui.home.components.MIN_TILE_SIZE_DP
-import com.vibelauncher.app.ui.home.components.NoteBubble
 import com.vibelauncher.app.ui.home.components.NotificationAccessCard
 import com.vibelauncher.app.ui.home.components.PageIndicator
 import com.vibelauncher.app.ui.home.components.TileGrid
@@ -117,7 +116,6 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showZipDialog by remember { mutableStateOf(false) }
-    var showNoteBubble by remember { mutableStateOf(false) }
     var vibeBarOpenRequestToken by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -328,7 +326,7 @@ fun HomeScreen(
                     onTileClick = { tile ->
                         // The default Note/To-Do tiles have no external app to hand off
                         // to (see IntentDefaults.intentFor's NOTE/TODO -> null branches) -
-                        // Note opens the ephemeral NoteBubble, To-Do opens its local list.
+                        // both open their own local list.
                         when ((tile.target as? TileTarget.BuiltIn)?.kind) {
                             BuiltInAction.NOTE -> onOpenNotes()
                             BuiltInAction.TODO -> onOpenTodos()
@@ -354,15 +352,10 @@ fun HomeScreen(
         // above. Invisible and inert when collapsed - see VibeBar's own doc comment.
         if (uiState.vibeBarEnabled) {
             VibeBar(
-                keyboardInputEnabled = uiState.pickerForSlot == null && !showZipDialog && !showNoteBubble,
-                onOpenNote = { showNoteBubble = true },
+                keyboardInputEnabled = uiState.pickerForSlot == null && !showZipDialog,
                 openRequestToken = vibeBarOpenRequestToken
             )
         }
-    }
-
-    if (showNoteBubble) {
-        NoteBubble(onDismiss = { showNoteBubble = false })
     }
 
     val pickerSlot = uiState.pickerForSlot

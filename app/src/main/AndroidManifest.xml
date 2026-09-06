@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Vibe Bar's '*' command writes the event straight into the user's calendar instead
+         of handing off to the Calendar app, so it needs write access too. -->
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Used for Vibe Bar's '@'/'#' contact search-as-you-type. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
