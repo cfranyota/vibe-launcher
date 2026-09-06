@@ -1,6 +1,7 @@
 package com.vibelauncher.app.ui.home
 
 import com.vibelauncher.app.data.calendar.CalendarEvent
+import com.vibelauncher.app.data.usage.HourState
 import com.vibelauncher.app.data.weather.WeatherInfo
 import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.ui.theme.LauncherCard
@@ -32,5 +33,8 @@ data class HomeUiState(
     val vibeBarEnabled: Boolean = true,
     val iconAccentColorArgb: Int = 0xFFF97316.toInt(),
     val iconAccentColorEnabled: Boolean = false,
-    val iconSizeStep: Int = 5
+    val iconSizeStep: Int = 5,
+    /** One entry per hour of the day the header is showing - what the activity bar draws. */
+    val activityHours: List<HourState> = List(24) { HourState.AHEAD },
+    val hasUsageAccess: Boolean = false
 )

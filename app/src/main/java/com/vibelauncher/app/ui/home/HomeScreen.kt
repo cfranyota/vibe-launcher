@@ -44,6 +44,7 @@ import com.vibelauncher.app.data.apps.AppInfo
 import com.vibelauncher.app.data.calendar.CalendarEvent
 import com.vibelauncher.app.model.BuiltInAction
 import com.vibelauncher.app.model.TileTarget
+import com.vibelauncher.app.ui.home.components.ActivityBar
 import com.vibelauncher.app.ui.home.components.CalendarPermissionCard
 import com.vibelauncher.app.ui.home.components.DateWeatherHeader
 import com.vibelauncher.app.ui.home.components.DrawerHandle
@@ -51,7 +52,7 @@ import com.vibelauncher.app.ui.home.components.ExpandableEventSection
 import com.vibelauncher.app.ui.home.components.MAX_TILE_SIZE_DP
 import com.vibelauncher.app.ui.home.components.MIN_TILE_SIZE_DP
 import com.vibelauncher.app.ui.home.components.NotificationAccessCard
-import com.vibelauncher.app.ui.home.components.PageIndicator
+import com.vibelauncher.app.ui.home.components.UsageAccessCard
 import com.vibelauncher.app.ui.home.components.TileGrid
 import com.vibelauncher.app.ui.home.components.VibeBar
 import com.vibelauncher.app.ui.home.components.ZipCodeDialog
@@ -179,6 +180,7 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 currentViewModel.value.refreshNotificationAccess()
+                currentViewModel.value.refreshUsageActivity()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -258,7 +260,21 @@ fun HomeScreen(
                         }
                     }
                 ) {
-                    PageIndicator(activeIndex = uiState.selectedDayOffset + 12)
+                    ActivityBar(
+                        hours = uiState.activityHours,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                    )
+
+                    if (!uiState.hasUsageAccess) {
+                        UsageAccessCard(
+                            onClick = {
+                                runCatching {
+                                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                }
+                            },
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                        )
+                    }
 
                     if (!uiState.hasNotificationAccess) {
                         NotificationAccessCard(

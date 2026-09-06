@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -145,6 +146,34 @@ fun NotificationAccessCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
         )
         Text(
             text = "Enable notification access to see badges on tiles",
+            color = LauncherMutedGray,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
+/** Shown under the activity bar while its dots have nothing to say - usage access is the
+ *  only way to know which hours went where, and it's granted from system Settings rather
+ *  than a runtime dialog. */
+@Composable
+fun UsageAccessCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(CardCornerShape)
+            .background(LauncherCard)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Timeline,
+            contentDescription = null,
+            tint = LauncherMutedGray,
+            modifier = Modifier.padding(end = 12.dp)
+        )
+        Text(
+            text = "Enable usage access to see where your day went",
             color = LauncherMutedGray,
             style = MaterialTheme.typography.bodyMedium
         )

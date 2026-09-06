@@ -17,6 +17,7 @@ import com.vibelauncher.app.data.settings.SettingsRepository
 import com.vibelauncher.app.data.sms.SmsRepository
 import com.vibelauncher.app.data.tiles.TileRepository
 import com.vibelauncher.app.data.todos.TodoRepository
+import com.vibelauncher.app.data.usage.UsageActivityRepository
 import com.vibelauncher.app.data.weather.OpenMeteoWeatherRepository
 import com.vibelauncher.app.data.weather.WeatherRepository
 
@@ -38,4 +39,5 @@ class AppContainer(context: Context) {
     val emailAppsRepository = EmailAppsRepository(context)
     val hubRepository = HubRepository(callLogRepository, smsRepository, contactsRepository, hubStateRepository, hubNotificationHistoryRepository, emailAppsRepository)
     val noteRepository = NoteRepository(context)
+    val usageActivityRepository = UsageActivityRepository(context, installedAppsRepository)
 }

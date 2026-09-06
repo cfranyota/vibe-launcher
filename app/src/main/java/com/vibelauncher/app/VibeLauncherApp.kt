@@ -96,7 +96,8 @@ fun VibeLauncherApp(navController: NavHostController = rememberNavController()) 
                         container.settingsRepository,
                         container.iconThemeRepository,
                         container.todoRepository,
-                        container.installedAppsRepository
+                        container.installedAppsRepository,
+                        container.usageActivityRepository
                     )
                 )
                 val pickerFactory = AppPickerViewModel.Factory(container.installedAppsRepository)

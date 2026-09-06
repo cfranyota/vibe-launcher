@@ -26,6 +26,22 @@ private val KNOWN_SOCIAL_PACKAGES = setOf(
     "com.whatsapp"
 )
 
+/** Video/streaming apps the activity bar counts as distracting on top of the social set -
+ *  same best-effort reasoning as [KNOWN_SOCIAL_PACKAGES], since plenty of them never
+ *  declare [ApplicationInfo.CATEGORY_VIDEO] either. */
+private val KNOWN_MEDIA_PACKAGES = setOf(
+    "com.google.android.youtube",
+    "com.google.android.apps.youtube.music",
+    "com.netflix.mediaclient",
+    "com.hulu.plus",
+    "com.disney.disneyplus",
+    "com.hbo.hbonow", // Max
+    "com.wbd.stream", // Max (current package)
+    "com.amazon.avod.thirdpartyclient", // Prime Video
+    "tv.twitch.android.app",
+    "com.google.android.videos" // Google TV / Play Movies
+)
+
 class InstalledAppsRepository(private val context: Context) {
 
     fun getLaunchableApps(): List<AppInfo> {
@@ -42,6 +58,17 @@ class InstalledAppsRepository(private val context: Context) {
         if (appInfo?.category == ApplicationInfo.CATEGORY_SOCIAL) return true
         val viewIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).setPackage(packageName)
         return viewIntent.resolveActivity(context.packageManager) != null
+    }
+
+    /** What the home screen's activity bar counts as an hour "slipping into feeds, social
+     *  apps or media" - Vibe Mode's social/browser set plus video/streaming, which is its
+     *  own kind of drift and isn't covered by either of those. Music isn't included: it
+     *  usually plays alongside real work rather than replacing it. */
+    fun isDistracting(packageName: String): Boolean {
+        if (packageName in KNOWN_MEDIA_PACKAGES) return true
+        val appInfo = runCatching { context.packageManager.getApplicationInfo(packageName, 0) }.getOrNull()
+        if (appInfo?.category == ApplicationInfo.CATEGORY_VIDEO) return true
+        return isSocialOrBrowser(packageName)
     }
 
     /** Best-effort real-icon lookup by component, for tiles not already covered by a

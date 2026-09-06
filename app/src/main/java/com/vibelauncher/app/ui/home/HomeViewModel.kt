@@ -19,6 +19,9 @@ import com.vibelauncher.app.data.notifications.NotificationBadgeRepository
 import com.vibelauncher.app.data.settings.SettingsRepository
 import com.vibelauncher.app.data.tiles.TileRepository
 import com.vibelauncher.app.data.todos.TodoRepository
+import com.vibelauncher.app.data.usage.HourUsage
+import com.vibelauncher.app.data.usage.UsageActivityRepository
+import com.vibelauncher.app.data.usage.hourStatesFor
 import com.vibelauncher.app.data.weather.WeatherRepository
 import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.model.TileTarget
@@ -27,6 +30,7 @@ import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.util.IntentDefaults
 import com.vibelauncher.app.util.PermissionUtils
 import androidx.compose.ui.graphics.toArgb
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +40,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val MIN_DAY_OFFSET = -12
 private const val MAX_DAY_OFFSET = 12
@@ -48,7 +53,8 @@ class HomeViewModel(
     private val settingsRepository: SettingsRepository,
     private val iconThemeRepository: IconThemeRepository,
     private val todoRepository: TodoRepository,
-    private val installedAppsRepository: InstalledAppsRepository
+    private val installedAppsRepository: InstalledAppsRepository,
+    private val usageActivityRepository: UsageActivityRepository
 ) : ViewModel() {
 
     private val clockTicker = flow {
@@ -68,6 +74,8 @@ class HomeViewModel(
     private val zipCode = MutableStateFlow("")
     private val pickerForSlot = MutableStateFlow<Int?>(null)
     private val hasNotificationAccess = MutableStateFlow(NotificationBadgeRepository.hasNotificationAccess(appContext))
+    private val hasUsageAccess = MutableStateFlow(usageActivityRepository.hasUsageAccess())
+    private val hourlyUsage = MutableStateFlow(List(24) { HourUsage(0L, 0L) })
     private val iconThemePackage = MutableStateFlow("")
     private val eventCardColorArgb = MutableStateFlow(LauncherCard.toArgb())
     private val eventCardColorEnabled = MutableStateFlow(false)
@@ -144,6 +152,21 @@ class HomeViewModel(
         viewModelScope.launch {
             todoRepository.todos.collectLatest { todos.value = it }
         }
+        refreshActivity()
+    }
+
+    /** Reloads the activity bar's hour buckets for whichever day the header is showing.
+     *  Reading them walks a day of raw usage events, so it stays off the main thread and
+     *  only runs on the events that can change the answer - resuming the screen, or moving
+     *  to another day. The ahead/past boundary itself needs no reload: it's derived from
+     *  the clock tick in [uiState]. */
+    private fun refreshActivity() {
+        val offset = selectedDayOffset.value
+        viewModelScope.launch {
+            val access = withContext(Dispatchers.IO) { usageActivityRepository.hasUsageAccess() }
+            hasUsageAccess.value = access
+            hourlyUsage.value = withContext(Dispatchers.IO) { usageActivityRepository.hourlyUsage(offset) }
+        }
     }
 
     val uiState: StateFlow<HomeUiState> = combine(
@@ -169,7 +192,9 @@ class HomeViewModel(
         todos,
         iconAccentColorArgb,
         iconAccentColorEnabled,
-        iconSizeStep
+        iconSizeStep,
+        hourlyUsage,
+        hasUsageAccess
     ) { values ->
         val events = values[1] as DayEvents
         @Suppress("UNCHECKED_CAST")
@@ -183,8 +208,12 @@ class HomeViewModel(
         val tasks = todoItems.map {
             CalendarEvent(id = -it.id, title = it.text, startMillis = it.createdAt, endMillis = it.createdAt, isAllDay = true)
         }
+        val nowMillis = values[0] as Long
+        @Suppress("UNCHECKED_CAST")
+        val usage = values[23] as List<HourUsage>
+        val usageAccess = values[24] as Boolean
         HomeUiState(
-            nowMillis = values[0] as Long,
+            nowMillis = nowMillis,
             timedEvents = events.timedEvents,
             allDayEvents = events.allDayEvents,
             tasks = tasks,
@@ -207,7 +236,9 @@ class HomeViewModel(
             vibeBarEnabled = values[18] as Boolean,
             iconAccentColorArgb = values[20] as Int,
             iconAccentColorEnabled = values[21] as Boolean,
-            iconSizeStep = values[22] as Int
+            iconSizeStep = values[22] as Int,
+            activityHours = hourStatesFor(usage, values[8] as Int, nowMillis, usageAccess),
+            hasUsageAccess = usageAccess
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
@@ -228,6 +259,13 @@ class HomeViewModel(
         hasNotificationAccess.value = NotificationBadgeRepository.hasNotificationAccess(appContext)
     }
 
+    /** Usage access is granted from system Settings like notification access is, so the
+     *  screen re-checks on resume - which is also the moment the activity bar's hours are
+     *  worth reloading, since the user has just come back from using something. */
+    fun refreshUsageActivity() {
+        refreshActivity()
+    }
+
     fun onDayOffsetChange(delta: Int) {
         val newOffset = (selectedDayOffset.value + delta).coerceIn(MIN_DAY_OFFSET, MAX_DAY_OFFSET)
         if (newOffset == selectedDayOffset.value) return
@@ -239,6 +277,7 @@ class HomeViewModel(
                 dayEvents.value = calendarRepository.getEventsForDay(newOffset)
             }
         }
+        refreshActivity()
     }
 
     fun toggleEventsExpanded() {
@@ -336,11 +375,12 @@ class HomeViewModel(
         private val settingsRepository: SettingsRepository,
         private val iconThemeRepository: IconThemeRepository,
         private val todoRepository: TodoRepository,
-        private val installedAppsRepository: InstalledAppsRepository
+        private val installedAppsRepository: InstalledAppsRepository,
+        private val usageActivityRepository: UsageActivityRepository
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
-            return HomeViewModel(appContext, calendarRepository, weatherRepository, tileRepository, settingsRepository, iconThemeRepository, todoRepository, installedAppsRepository) as T
+            return HomeViewModel(appContext, calendarRepository, weatherRepository, tileRepository, settingsRepository, iconThemeRepository, todoRepository, installedAppsRepository, usageActivityRepository) as T
         }
     }
 }

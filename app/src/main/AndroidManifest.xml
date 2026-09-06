@@ -1,5 +1,12 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The home screen's activity bar reads per-hour screen time. Usage access isn't a
+         runtime permission - the user grants it in system Settings, which is why this is
+         declared but never requested with requestPermissions(). -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <!-- Vibe Bar's '*' command writes the event straight into the user's calendar instead
          of handing off to the Calendar app, so it needs write access too. -->
