@@ -33,6 +33,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -120,6 +121,7 @@ fun HomeScreen(
     var vibeBarOpenRequestToken by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
 
     // Measured at runtime rather than hand-tuned, so the tile grid can never grow tall
     // enough to crowd the Calendar/Task bars above it. Each EventCard renders at a fixed
@@ -129,8 +131,13 @@ fun HomeScreen(
     // measurement seen this session and never decreases - every day (0, 1, or 2 bars) then
     // sizes tiles against that same worst-case number, so tiles never resize as you swipe
     // between days and are never bigger than what a 2-bar day can safely fit.
-    var totalHeightPx by remember { mutableIntStateOf(0) }
-    var totalWidthPx by remember { mutableIntStateOf(0) }
+    // Keyed on the window's own configured size so the grows-only measurement below can't
+    // stay latched to a stale screen: a real size change (rotation, fold, split-screen)
+    // changes the configuration and starts the measurement over, while the IME - which
+    // resizes the window without any configuration change - cannot.
+    val windowSizeKey = configuration.screenHeightDp to configuration.screenWidthDp
+    var totalHeightPx by remember(windowSizeKey) { mutableIntStateOf(0) }
+    var totalWidthPx by remember(windowSizeKey) { mutableIntStateOf(0) }
     var headerHeightPx by remember { mutableIntStateOf(0) }
     val safeMaxTileSizeDp = with(density) {
         val totalDp = totalHeightPx.toDp()
@@ -190,9 +197,21 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // Only ever grows (within one window configuration - see the remember keys on
+            // totalHeightPx/totalWidthPx). The window is declared adjustResize, so opening
+            // Vibe Bar's keyboard shrinks this Box by the height of the IME; feeding that
+            // back into safeMaxTileSizeDp re-ran the tile-size formula against a screen
+            // temporarily ~40% shorter and visibly shrank all 8 tiles (measured: 257px ->
+            // 175px) for as long as the bar was open. Tile size is a property of the
+            // screen, not of whether a keyboard happens to be up. Taking the tallest
+            // measurement is what rejects the IME-shrunken ones without having to detect
+            // the IME itself - WindowInsets.ime reads as zero here, since adjustResize has
+            // already consumed the inset by resizing the window.
             .onGloballyPositioned {
-                totalHeightPx = it.size.height
-                totalWidthPx = it.size.width
+                if (it.size.height > totalHeightPx) {
+                    totalHeightPx = it.size.height
+                    totalWidthPx = it.size.width
+                }
             }
             // No opaque background here - the activity window itself renders the system
             // wallpaper behind this content (see Theme.VibeLauncher's windowShowWallpaper
