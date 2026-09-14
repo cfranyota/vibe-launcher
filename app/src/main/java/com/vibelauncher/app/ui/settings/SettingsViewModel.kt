@@ -37,6 +37,11 @@ class SettingsViewModel(
             }
         }
         viewModelScope.launch {
+            settingsRepository.useCelsius.collectLatest { enabled ->
+                _uiState.value = _uiState.value.copy(useCelsius = enabled)
+            }
+        }
+        viewModelScope.launch {
             settingsRepository.vibeBarEnabled.collectLatest { enabled ->
                 _uiState.value = _uiState.value.copy(vibeBarEnabled = enabled)
             }
@@ -77,6 +82,10 @@ class SettingsViewModel(
 
     fun setVibeBarEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setVibeBarEnabled(enabled) }
+    }
+
+    fun setUseCelsius(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setUseCelsius(enabled) }
     }
 
     fun setIconSizeStep(step: Int) {

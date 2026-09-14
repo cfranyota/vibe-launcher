@@ -17,6 +17,7 @@ private val EVENT_CARD_COLOR_ENABLED_KEY = booleanPreferencesKey("event_card_col
 private val TILE_BORDER_ENABLED_KEY = booleanPreferencesKey("tile_border_enabled")
 private val TILE_BORDER_SIZE_STEP_KEY = intPreferencesKey("tile_border_size_step")
 private val VIBE_BAR_ENABLED_KEY = booleanPreferencesKey("vibe_bar_enabled")
+private val USE_CELSIUS_KEY = booleanPreferencesKey("use_celsius")
 private val ICON_ACCENT_COLOR_KEY = intPreferencesKey("icon_accent_color")
 private val ICON_ACCENT_COLOR_ENABLED_KEY = booleanPreferencesKey("icon_accent_color_enabled")
 private val ACCENT_COLOR_KEY = intPreferencesKey("accent_color")
@@ -104,6 +105,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setVibeBarEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[VIBE_BAR_ENABLED_KEY] = enabled }
+    }
+
+    /** Off by default - weather has always been shown in °F. */
+    val useCelsius = context.settingsDataStore.data.map { it[USE_CELSIUS_KEY] ?: false }
+
+    suspend fun setUseCelsius(enabled: Boolean) {
+        context.settingsDataStore.edit { it[USE_CELSIUS_KEY] = enabled }
     }
 
     /** Packed ARGB for the calendar/checklist icons, the "5m"/"0m"/"•" badge circle, and

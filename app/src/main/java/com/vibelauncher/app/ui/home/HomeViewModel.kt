@@ -85,6 +85,7 @@ class HomeViewModel(
     private val tileBorderEnabled = MutableStateFlow(false)
     private val tileBorderSizeStep = MutableStateFlow(5)
     private val vibeBarEnabled = MutableStateFlow(true)
+    private val useCelsius = MutableStateFlow(false)
     private val iconSizeStep = MutableStateFlow(5)
     private val homeIconsStayDefault = MutableStateFlow(false)
     private val todos = MutableStateFlow<List<TodoItem>>(emptyList())
@@ -145,6 +146,9 @@ class HomeViewModel(
             settingsRepository.vibeBarEnabled.collectLatest { vibeBarEnabled.value = it }
         }
         viewModelScope.launch {
+            settingsRepository.useCelsius.collectLatest { useCelsius.value = it }
+        }
+        viewModelScope.launch {
             settingsRepository.iconSizeStep.collectLatest { iconSizeStep.value = it }
         }
         viewModelScope.launch {
@@ -195,7 +199,8 @@ class HomeViewModel(
         iconAccentColorEnabled,
         iconSizeStep,
         hourlyUsage,
-        hasUsageAccess
+        hasUsageAccess,
+        useCelsius
     ) { values ->
         val events = values[1] as DayEvents
         @Suppress("UNCHECKED_CAST")
@@ -253,7 +258,8 @@ class HomeViewModel(
             iconSizeStep = values[22] as Int,
             taskBadges = taskBadges,
             activityHours = hourStatesFor(usage, values[8] as Int, nowMillis, usageAccess),
-            hasUsageAccess = usageAccess
+            hasUsageAccess = usageAccess,
+            useCelsius = values[25] as Boolean
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

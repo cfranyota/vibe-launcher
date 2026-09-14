@@ -243,6 +243,7 @@ fun HomeScreen(
                 selectedDayOffset = uiState.selectedDayOffset,
                 weather = uiState.weather,
                 weatherLoading = uiState.weatherLoading,
+                useCelsius = uiState.useCelsius,
                 onWeatherClick = { showZipDialog = true },
                 sunTint = if (uiState.iconAccentColorEnabled) Color(uiState.iconAccentColorArgb) else LocalAccentColor.current,
                 modifier = Modifier.onGloballyPositioned { headerHeightPx = it.size.height }

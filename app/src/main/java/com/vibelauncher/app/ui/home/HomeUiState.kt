@@ -39,5 +39,6 @@ data class HomeUiState(
     val iconSizeStep: Int = 5,
     /** One entry per hour of the day the header is showing - what the activity bar draws. */
     val activityHours: List<HourState> = List(24) { HourState.AHEAD },
-    val hasUsageAccess: Boolean = false
+    val hasUsageAccess: Boolean = false,
+    val useCelsius: Boolean = false
 )

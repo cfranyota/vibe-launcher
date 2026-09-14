@@ -124,6 +124,12 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setVibeBarEnabled
             )
             ToggleRow(
+                title = "Celsius",
+                subtitle = "show temperature in °C",
+                checked = uiState.useCelsius,
+                onCheckedChange = viewModel::setUseCelsius
+            )
+            ToggleRow(
                 title = "Icon borders",
                 subtitle = "outline home screen icons",
                 checked = uiState.tileBorderEnabled,

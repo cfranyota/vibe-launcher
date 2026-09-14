@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.vibelauncher.app.data.weather.WeatherInfo
+import com.vibelauncher.app.data.weather.displayTemp
 import com.vibelauncher.app.ui.theme.DateWeatherTextStyle
 import com.vibelauncher.app.ui.theme.DayTextStyle
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
@@ -38,6 +39,7 @@ fun DateWeatherHeader(
     weatherLoading: Boolean,
     onWeatherClick: () -> Unit,
     modifier: Modifier = Modifier,
+    useCelsius: Boolean = false,
     sunTint: Color = LocalAccentColor.current
 ) {
     val date = remember(selectedDayOffset) { LocalDate.now().plusDays(selectedDayOffset.toLong()) }
@@ -81,7 +83,7 @@ fun DateWeatherHeader(
                         modifier = Modifier.padding(end = 6.dp)
                     )
                     Text(
-                        text = "${weather.condition}, ${weather.tempF}°",
+                        text = "${weather.condition}, ${weather.displayTemp(useCelsius)}°",
                         style = MaterialTheme.typography.bodyMedium,
                         color = LauncherMutedGray
                     )
