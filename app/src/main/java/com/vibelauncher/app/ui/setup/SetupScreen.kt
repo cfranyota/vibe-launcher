@@ -177,7 +177,7 @@ private fun DoneStep(label: String, mode: SetupMode) {
     }
     StepLayout(label = label, title = "you're all set") {
         StepText("anything you skipped can be turned on later, and this whole walkthrough can be run again.")
-        StepText("settings: swipe up on home, then long-press any app and tap settings.")
+        StepText("settings: swipe up on home and tap the gear beside the search box.")
     }
 }
 

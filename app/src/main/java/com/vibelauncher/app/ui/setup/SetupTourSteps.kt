@@ -204,7 +204,7 @@ private fun TilesStep(label: String) {
 @Composable
 private fun SettingsStep(label: String) {
     StepLayout(label = label, title = "settings") {
-        GestureRow(Icons.Filled.Settings, "swipe up, then long-press any app", "tap settings in the menu that opens.")
+        GestureRow(Icons.Filled.Settings, "swipe up, then tap the gear", "it's beside the search box. long-pressing any app gets you there too.")
         StepText("in there:")
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             SettingsItem("appearance", "accent color and text size")

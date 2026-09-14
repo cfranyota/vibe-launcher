@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -130,15 +131,25 @@ fun AppDrawerScreen(
                     )
                 }
         ) {
-            OutlinedTextField(
-                value = uiState.query,
-                onValueChange = viewModel::onQueryChange,
-                label = { Text("Search apps") },
-                singleLine = true,
+            // Settings used to be reachable only by long-pressing an app, which nobody finds
+            // on their own - the gear gives it a place you can see.
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-            )
+                    .padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = uiState.query,
+                    onValueChange = viewModel::onQueryChange,
+                    label = { Text("Search apps") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onOpenSettings) {
+                    Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings", tint = LauncherWhite)
+                }
+            }
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),

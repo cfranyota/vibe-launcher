@@ -4,17 +4,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Icon
@@ -47,7 +51,9 @@ fun SettingsScreen(
     onOpenCardColor: () -> Unit,
     onOpenIconTheme: () -> Unit,
     onOpenLetterShortcuts: () -> Unit,
-    onOpenMonkMode: () -> Unit
+    onOpenMonkMode: () -> Unit,
+    onOpenGuide: () -> Unit,
+    onRunSetup: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -156,6 +162,21 @@ fun SettingsScreen(
                         .padding(horizontal = 16.dp)
                 )
             }
+
+            SectionHeader("Help", modifier = Modifier.padding(top = 12.dp))
+            SettingsNavRow(
+                icon = Icons.AutoMirrored.Filled.HelpOutline,
+                title = "how to use vibe",
+                subtitle = "the basics, commands and gestures",
+                onClick = onOpenGuide
+            )
+            SettingsNavRow(
+                icon = Icons.Filled.RestartAlt,
+                title = "run setup again",
+                subtitle = "permissions and defaults, step by step",
+                onClick = onRunSetup
+            )
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
