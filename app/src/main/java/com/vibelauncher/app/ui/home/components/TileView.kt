@@ -40,17 +40,29 @@ import com.vibelauncher.app.ui.theme.TileCornerShape
 val MIN_TILE_SIZE_DP = 64.dp
 val MAX_TILE_SIZE_DP = 128.dp
 
-/** The single source of truth for "how big is a tile right now" - shared by [TileView]
- *  itself and by [TileGrid], so the two can never disagree. The dynamic (runtime-measured,
- *  always safe) cap always wins over the nominal max. The bordered size is otherwise
- *  user-adjustable via a discrete 1-10 step (see the Launcher Settings slider): step 1 maps
- *  to MIN_TILE_SIZE_DP, step 10 to the safe cap, with a straight linear interpolation in
- *  between. With the border off, tiles stay at the safe max regardless of the step. */
-fun resolveTileSizeDp(showBorder: Boolean, borderSizeStep: Int, dynamicMaxSizeDp: Dp): Dp {
+data class TileSize(val width: Dp, val height: Dp)
+
+/**
+ * How big a tile is right now. The dynamic (runtime-measured, always safe) cap always wins
+ * over the nominal max, and with the border off tiles simply sit at that cap.
+ *
+ * With the border on, the 1-10 step (see the Settings slider) works in two halves:
+ * - 1-5 grow a square from MIN_TILE_SIZE_DP up to the cap - the biggest tile that fits
+ *   without crowding the event and to-do cards. 5 is the default.
+ * - 6-10 keep that height and only widen the tile, until at 10 it's a quarter of the row
+ *   ([fullRowTileWidthDp]) and neighbouring outlines touch. Height is what the cap protects,
+ *   so this is the only direction there's room to keep growing.
+ */
+fun resolveTileSize(showBorder: Boolean, borderSizeStep: Int, dynamicMaxSizeDp: Dp, fullRowTileWidthDp: Dp): TileSize {
     val cap = dynamicMaxSizeDp.coerceAtMost(MAX_TILE_SIZE_DP)
-    if (!showBorder) return cap
-    val fraction = (borderSizeStep.coerceIn(1, 10) - 1) / 9f
-    return MIN_TILE_SIZE_DP + (cap - MIN_TILE_SIZE_DP) * fraction
+    if (!showBorder) return TileSize(cap, cap)
+    val step = borderSizeStep.coerceIn(1, 10)
+    if (step <= 5) {
+        val side = MIN_TILE_SIZE_DP + (cap - MIN_TILE_SIZE_DP) * ((step - 1) / 4f)
+        return TileSize(side, side)
+    }
+    val widest = fullRowTileWidthDp.coerceAtLeast(cap)
+    return TileSize(width = cap + (widest - cap) * ((step - 5) / 5f), height = cap)
 }
 
 /** Bounds for the icon glyph itself (independent of [resolveTileSizeDp], which sizes the
@@ -60,9 +72,9 @@ val ICON_SIZE_MIN_DP = 20.dp
 val ICON_SIZE_DEFAULT_DP = 52.dp
 val ICON_SIZE_MAX_DP = 84.dp
 
-/** Two-segment linear interpolation around the step-5 default (see bounds above), clamped
- *  against the tile's own current size so a maxed-out icon can never overflow a tile that's
- *  been shrunk down by the independent border-size slider. */
+/** Two-segment linear interpolation around step 5 (see bounds above), clamped against the
+ *  tile's height - its smaller side, since the border slider's top steps only widen it - so
+ *  a maxed-out icon can never overflow a tile that's been shrunk down by that slider. */
 fun resolveIconSizeDp(iconSizeStep: Int, tileSizeDp: Dp): Dp {
     val step = iconSizeStep.coerceIn(1, 10)
     val raw = if (step <= 5) {
@@ -84,13 +96,14 @@ fun TileView(
     borderSizeStep: Int = 5,
     iconSizeStep: Int = 5,
     dynamicMaxSizeDp: Dp = MAX_TILE_SIZE_DP,
+    fullRowTileWidthDp: Dp = MAX_TILE_SIZE_DP,
     modifier: Modifier = Modifier
 ) {
-    val tileSize = resolveTileSizeDp(showBorder, borderSizeStep, dynamicMaxSizeDp)
-    val iconSize = resolveIconSizeDp(iconSizeStep, tileSize)
+    val tileSize = resolveTileSize(showBorder, borderSizeStep, dynamicMaxSizeDp, fullRowTileWidthDp)
+    val iconSize = resolveIconSizeDp(iconSizeStep, tileSize.height)
     Column(
         modifier = modifier
-            .size(tileSize)
+            .size(width = tileSize.width, height = tileSize.height)
             .then(
                 if (showBorder) Modifier.border(1.dp, LauncherWhite, TileCornerShape) else Modifier
             )

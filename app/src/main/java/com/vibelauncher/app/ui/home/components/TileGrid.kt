@@ -2,12 +2,14 @@ package com.vibelauncher.app.ui.home.components
 
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.vibelauncher.app.model.Tile
@@ -35,10 +37,13 @@ fun TileGrid(
     dynamicMaxSizeDp: Dp = MAX_TILE_SIZE_DP,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(ROW_GAP_DP)
-    ) {
+    BoxWithConstraints(modifier = modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 6.dp)) {
+    // A quarter of the row, in whole pixels - the width at which the border slider's top step
+    // makes four tiles touch. Integer division rounds down, so four of them can never add up
+    // to a pixel more than the row and push the last tile out of line.
+    val density = LocalDensity.current
+    val fullRowTileWidthDp = with(density) { (constraints.maxWidth / 4).toDp() }
+    Column(verticalArrangement = Arrangement.spacedBy(ROW_GAP_DP)) {
         tiles.chunked(4).forEach { rowTiles ->
             // SpaceEvenly puts equal space before the first tile, between each pair, and
             // after the last - so leftover row width becomes genuinely even edge-to-edge
@@ -59,10 +64,12 @@ fun TileGrid(
                         showBorder = showBorder,
                         borderSizeStep = borderSizeStep,
                         iconSizeStep = iconSizeStep,
-                        dynamicMaxSizeDp = dynamicMaxSizeDp
+                        dynamicMaxSizeDp = dynamicMaxSizeDp,
+                        fullRowTileWidthDp = fullRowTileWidthDp
                     )
                 }
             }
         }
+    }
     }
 }

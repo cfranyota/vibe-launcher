@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.map
+import kotlin.math.roundToInt
 
 private val Context.settingsDataStore by preferencesDataStore(name = "settings_prefs")
 private val ZIP_CODE_KEY = stringPreferencesKey("zip_code")
@@ -16,6 +17,7 @@ private val EVENT_CARD_COLOR_KEY = intPreferencesKey("event_card_color")
 private val EVENT_CARD_COLOR_ENABLED_KEY = booleanPreferencesKey("event_card_color_enabled")
 private val TILE_BORDER_ENABLED_KEY = booleanPreferencesKey("tile_border_enabled")
 private val TILE_BORDER_SIZE_STEP_KEY = intPreferencesKey("tile_border_size_step")
+private val TILE_BORDER_SCALE_KEY = intPreferencesKey("tile_border_scale")
 private val VIBE_BAR_ENABLED_KEY = booleanPreferencesKey("vibe_bar_enabled")
 private val USE_CELSIUS_KEY = booleanPreferencesKey("use_celsius")
 private val ICON_ACCENT_COLOR_KEY = intPreferencesKey("icon_accent_color")
@@ -37,9 +39,19 @@ private const val DEFAULT_EVENT_CARD_COLOR = 0xFF1A1A1A.toInt()
  *  same reasoning as DEFAULT_EVENT_CARD_COLOR above. */
 private const val DEFAULT_ICON_ACCENT_COLOR = 0xFFEF4444.toInt()
 
-/** Default border-size step on the 1-10 scale (see TileView.kt's resolveTileSizeDp) - the
- *  midpoint, not the max. */
+/** Default border-size step on the 1-10 scale (see TileView.kt's resolveTileSize) - the
+ *  biggest square tile that fits; the steps above it only widen. */
 private const val DEFAULT_TILE_BORDER_SIZE_STEP = 5
+
+/** Border steps saved from now on are on this scale. Steps saved before it have no scale
+ *  recorded, and meant something different: the old 1-10 ran smallest to biggest square,
+ *  which is today's 1-5. */
+private const val CURRENT_TILE_BORDER_SCALE = 2
+
+/** An old-scale border step on the current scale - old 1 is still 1, old 10 (the biggest
+ *  square) is now 5, and everything between lands on the nearest step. */
+private fun legacyBorderStepToCurrent(oldStep: Int): Int =
+    1 + (4f * (oldStep.coerceIn(1, 10) - 1) / 9f).roundToInt()
 
 /** New app-wide accent default - Tailwind orange-500, chosen to sit at roughly the same
  *  lightness/chroma band as the outgoing LauncherRed (Tailwind red-500) so existing
@@ -93,11 +105,19 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[TILE_BORDER_ENABLED_KEY] = enabled }
     }
 
-    /** 1-10 scale, defaults to the midpoint. */
-    val tileBorderSizeStep = context.settingsDataStore.data.map { it[TILE_BORDER_SIZE_STEP_KEY] ?: DEFAULT_TILE_BORDER_SIZE_STEP }
+    /** 1-10 scale, defaults to 5. A step saved before the scale changed is converted as it's
+     *  read rather than rewritten in the background, so a tile never renders at the wrong
+     *  size for a frame while a migration catches up. */
+    val tileBorderSizeStep = context.settingsDataStore.data.map { prefs ->
+        val stored = prefs[TILE_BORDER_SIZE_STEP_KEY] ?: return@map DEFAULT_TILE_BORDER_SIZE_STEP
+        if (prefs[TILE_BORDER_SCALE_KEY] == CURRENT_TILE_BORDER_SCALE) stored else legacyBorderStepToCurrent(stored)
+    }
 
     suspend fun setTileBorderSizeStep(step: Int) {
-        context.settingsDataStore.edit { it[TILE_BORDER_SIZE_STEP_KEY] = step }
+        context.settingsDataStore.edit {
+            it[TILE_BORDER_SIZE_STEP_KEY] = step
+            it[TILE_BORDER_SCALE_KEY] = CURRENT_TILE_BORDER_SCALE
+        }
     }
 
     /** On by default - Vibe Bar is a core interaction, not optional chrome; users who
