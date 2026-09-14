@@ -86,7 +86,7 @@ class HomeViewModel(
     private val tileBorderSizeStep = MutableStateFlow(5)
     private val vibeBarEnabled = MutableStateFlow(true)
     private val useCelsius = MutableStateFlow(false)
-    private val iconSizeStep = MutableStateFlow(5)
+    private val iconSizeStep = MutableStateFlow(2)
     private val homeIconsStayDefault = MutableStateFlow(false)
     private val todos = MutableStateFlow<List<TodoItem>>(emptyList())
 

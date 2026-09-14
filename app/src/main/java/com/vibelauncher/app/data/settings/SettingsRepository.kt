@@ -62,9 +62,18 @@ private const val DEFAULT_ACCENT_COLOR = 0xFFF97316.toInt()
  *  multiplicatively with the OS accessibility font scale instead of replacing it. */
 private const val DEFAULT_FONT_SCALE = 1.0f
 
-/** 1-10 scale, defaults to the midpoint (see TileView.kt's resolveIconSizeDp) - matches
- *  today's fixed 28dp icon glyph exactly, so existing installs see no visual change. */
-private const val DEFAULT_ICON_SIZE_STEP = 5
+/** Default icon size on the 1-10 scale (see TileView.kt's resolveIconSizeDp) while home
+ *  tiles show the stock glyphs - 28dp, which suits their thin outlines. */
+private const val STOCK_ICONS_DEFAULT_SIZE_STEP = 2
+
+/** Default icon size once home tiles show an icon theme instead - pack icons are detailed
+ *  bitmaps that read better bigger. */
+private const val THEMED_ICONS_DEFAULT_SIZE_STEP = 5
+
+internal fun defaultIconSizeStep(iconThemePackage: String?, homeIconsStayDefault: Boolean): Int {
+    val homeTilesThemed = !iconThemePackage.isNullOrBlank() && !homeIconsStayDefault
+    return if (homeTilesThemed) THEMED_ICONS_DEFAULT_SIZE_STEP else STOCK_ICONS_DEFAULT_SIZE_STEP
+}
 
 class SettingsRepository(private val context: Context) {
 
@@ -79,8 +88,13 @@ class SettingsRepository(private val context: Context) {
      *  opt-in below. */
     val iconThemePackage = context.settingsDataStore.data.map { it[ICON_THEME_PACKAGE_KEY] ?: "" }
 
+    /** Changing the theme also clears a hand-set icon size, so the icons land on the default
+     *  for what the home screen now shows - bigger for a pack, back to small without one. */
     suspend fun setIconThemePackage(packageName: String) {
-        context.settingsDataStore.edit { it[ICON_THEME_PACKAGE_KEY] = packageName }
+        context.settingsDataStore.edit { prefs ->
+            if (prefs[ICON_THEME_PACKAGE_KEY].orEmpty() != packageName) prefs.remove(ICON_SIZE_STEP_KEY)
+            prefs[ICON_THEME_PACKAGE_KEY] = packageName
+        }
     }
 
     /** Packed ARGB for the home-screen Calendar/Task cards. Low alpha is the "glass" look -
@@ -164,9 +178,14 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[FONT_SCALE_KEY] = scale }
     }
 
-    /** 1-10 scale, defaults to the midpoint. Independent of tileBorderSizeStep above - this
-     *  one resizes the icon glyph itself, not the whole tile box. */
-    val iconSizeStep = context.settingsDataStore.data.map { it[ICON_SIZE_STEP_KEY] ?: DEFAULT_ICON_SIZE_STEP }
+    /** 1-10 scale. Independent of tileBorderSizeStep above - this one resizes the icon glyph
+     *  itself, not the whole tile box. Until it's set by hand the default follows what the
+     *  home tiles actually show: themed icons need an icon pack chosen *and* home tiles not
+     *  held on stock icons, so a pack with "don't change homescreen apps" on keeps the
+     *  stock-icon default. */
+    val iconSizeStep = context.settingsDataStore.data.map { prefs ->
+        prefs[ICON_SIZE_STEP_KEY] ?: defaultIconSizeStep(prefs[ICON_THEME_PACKAGE_KEY], prefs[HOME_ICONS_STAY_DEFAULT_KEY] == true)
+    }
 
     suspend fun setIconSizeStep(step: Int) {
         context.settingsDataStore.edit { it[ICON_SIZE_STEP_KEY] = step }

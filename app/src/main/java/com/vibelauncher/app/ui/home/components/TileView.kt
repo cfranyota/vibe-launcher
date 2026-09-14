@@ -94,7 +94,7 @@ fun TileView(
     iconOverride: Drawable? = null,
     showBorder: Boolean = false,
     borderSizeStep: Int = 5,
-    iconSizeStep: Int = 5,
+    iconSizeStep: Int = 2,
     dynamicMaxSizeDp: Dp = MAX_TILE_SIZE_DP,
     fullRowTileWidthDp: Dp = MAX_TILE_SIZE_DP,
     modifier: Modifier = Modifier
