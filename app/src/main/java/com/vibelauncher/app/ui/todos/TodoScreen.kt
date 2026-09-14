@@ -60,6 +60,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vibelauncher.app.model.TodoItem
+import com.vibelauncher.app.model.dueLabel
+import com.vibelauncher.app.model.isOverdue
 import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.ui.theme.LauncherMutedGray
 import com.vibelauncher.app.ui.theme.LauncherWhite
@@ -128,7 +130,8 @@ fun TodoScreen(viewModel: TodoViewModel, onBack: () -> Unit) {
                         onDismissMenu = viewModel::onDismissMenu,
                         onEdit = { viewModel.onEditTapped(todo) },
                         onDelete = { viewModel.deleteTodo(todo) },
-                        onToggleStarred = { viewModel.toggleStarred(todo) }
+                        onToggleStarred = { viewModel.toggleStarred(todo) },
+                        onClearDue = { viewModel.clearDue(todo) }
                     )
                 }
                 item {
@@ -177,6 +180,7 @@ private fun TodoHeader(uiState: TodoUiState, onBack: () -> Unit, onSortSelected:
                 DropdownMenuItem(text = { Text("Newest first") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.NEWEST) })
                 DropdownMenuItem(text = { Text("Oldest first") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.OLDEST) })
                 DropdownMenuItem(text = { Text("Starred first") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.STARRED_FIRST) })
+                DropdownMenuItem(text = { Text("Due soonest") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.DUE_SOONEST) })
             }
         }
     }
@@ -229,8 +233,11 @@ private fun TodoRow(
     onDismissMenu: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onToggleStarred: () -> Unit
+    onToggleStarred: () -> Unit,
+    onClearDue: () -> Unit
 ) {
+    val nowMillis = System.currentTimeMillis()
+    val dueLabel = if (todo.done) null else todo.dueLabel(nowMillis)
     Box {
         Row(
             modifier = Modifier
@@ -270,7 +277,17 @@ private fun TodoRow(
                 Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = LocalAccentColor.current, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
             }
-            Text(text = todo.ageLabel(), color = LauncherMutedGray, style = MaterialTheme.typography.labelSmall)
+            // An open to-do with a due date shows when it's due instead of how old it is -
+            // that's the more useful of the two once there's a deadline.
+            if (dueLabel != null) {
+                Text(
+                    text = dueLabel,
+                    color = if (todo.isOverdue(nowMillis)) LocalAccentColor.current else LauncherMutedGray,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            } else {
+                Text(text = todo.ageLabel(nowMillis), color = LauncherMutedGray, style = MaterialTheme.typography.labelSmall)
+            }
         }
         DropdownMenu(expanded = menuOpen, onDismissRequest = onDismissMenu) {
             DropdownMenuItem(text = { Text("Edit") }, onClick = { onDismissMenu(); onEdit() })
@@ -279,6 +296,9 @@ private fun TodoRow(
                 text = { Text(if (todo.starred) "Unstar" else "Star") },
                 onClick = { onDismissMenu(); onToggleStarred() }
             )
+            if (todo.dueAt != null) {
+                DropdownMenuItem(text = { Text("Clear due date") }, onClick = { onDismissMenu(); onClearDue() })
+            }
         }
     }
 }

@@ -336,7 +336,7 @@ fun HomeScreen(
                         cardColor = cardColor,
                         icon = Icons.Filled.Checklist,
                         iconTint = iconTint,
-                        badgeFor = { "•" }
+                        badgeFor = { uiState.taskBadges[it.id] ?: "•" }
                     )
                 }
             }

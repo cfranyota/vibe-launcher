@@ -90,6 +90,8 @@ import com.vibelauncher.app.features.vibebar.VIBE_BAR_COMMAND_PREFIXES
 import com.vibelauncher.app.features.vibebar.VIBE_BAR_EVENT_PREFIX
 import com.vibelauncher.app.features.vibebar.VIBE_BAR_NOTE_PREFIX
 import com.vibelauncher.app.features.vibebar.eventPreviewLabel
+import com.vibelauncher.app.features.vibebar.parseTodoText
+import com.vibelauncher.app.features.vibebar.whenLabel
 import com.vibelauncher.app.features.vibebar.parseEventText
 import com.vibelauncher.app.features.vibebar.parseVibeBarInput
 import com.vibelauncher.app.features.vibebar.previewTextFor
@@ -284,6 +286,9 @@ fun VibeBar(
     val parsedEvent = remember(prefix, payload) {
         if (prefix == VIBE_BAR_EVENT_PREFIX && payload.isNotBlank()) parseEventText(payload) else null
     }
+    val parsedTodo = remember(prefix, payload) {
+        if (prefix == '-' && payload.isNotBlank()) parseTodoText(payload) else null
+    }
 
     fun sendDirectOrRequestAccess(phone: String, body: String, contactName: String) {
         if (hasSmsPermission) {
@@ -349,8 +354,8 @@ fun VibeBar(
 
     fun submit() {
         when (prefix) {
-            '-' -> if (payload.isNotBlank()) {
-                coroutineScope.launch { todoRepository.add(payload) }
+            '-' -> parsedTodo?.let { draft ->
+                coroutineScope.launch { todoRepository.add(draft.text, draft.dueAt, draft.dueAllDay) }
                 confirmationMessage = "saved to to-do"
             }
             VIBE_BAR_NOTE_PREFIX -> if (payload.isNotBlank()) {
@@ -531,7 +536,8 @@ fun VibeBar(
                         }
 
                         val eventPreview = parsedEvent?.let { eventPreviewLabel(it) }
-                        previewTextFor(previewPrefix, payload, selectedContact, eventPreview)?.let { preview ->
+                        val todoPreview = parsedTodo?.dueAt?.let { due -> "${parsedTodo.text} · ${whenLabel(due, parsedTodo.dueAllDay)}" }
+                        previewTextFor(previewPrefix, payload, selectedContact, eventPreview, todoPreview)?.let { preview ->
                             Text(
                                 text = preview,
                                 color = LauncherMutedGray,

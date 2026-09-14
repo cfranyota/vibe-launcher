@@ -26,6 +26,7 @@ import com.vibelauncher.app.data.weather.WeatherRepository
 import com.vibelauncher.app.model.Tile
 import com.vibelauncher.app.model.TileTarget
 import com.vibelauncher.app.model.TodoItem
+import com.vibelauncher.app.model.dueBadge
 import com.vibelauncher.app.ui.theme.LauncherCard
 import com.vibelauncher.app.util.IntentDefaults
 import com.vibelauncher.app.util.PermissionUtils
@@ -205,10 +206,23 @@ class HomeViewModel(
         // the top (calendar) card instead (see HomeScreen). To-dos are a running list, not
         // tied to a calendar day, so they show every day, regardless of selectedDayOffset.
         // Negative ids keep them out of the way of real event ids.
-        val tasks = todoItems.map {
-            CalendarEvent(id = -it.id, title = it.text, startMillis = it.createdAt, endMillis = it.createdAt, isAllDay = true)
-        }
         val nowMillis = values[0] as Long
+        // Open to-dos with a due date lead, soonest first, so the collapsed card shows what's
+        // due next; open ones without a date follow in the order they were added (sortedWith
+        // is stable), and finished ones go last. A dated to-do takes its due moment as the
+        // card's time so the row reads "ring vet · 4:00 pm".
+        val orderedTodos = todoItems.sortedWith(compareBy({ it.done }, { it.dueAt == null }, { it.dueAt ?: 0L }))
+        val tasks = orderedTodos.map {
+            val start = it.dueAt ?: it.createdAt
+            CalendarEvent(
+                id = -it.id,
+                title = it.text,
+                startMillis = start,
+                endMillis = start,
+                isAllDay = it.dueAt == null || it.dueAllDay
+            )
+        }
+        val taskBadges = orderedTodos.mapNotNull { todo -> todo.dueBadge(nowMillis)?.let { -todo.id to it } }.toMap()
         @Suppress("UNCHECKED_CAST")
         val usage = values[23] as List<HourUsage>
         val usageAccess = values[24] as Boolean
@@ -237,6 +251,7 @@ class HomeViewModel(
             iconAccentColorArgb = values[20] as Int,
             iconAccentColorEnabled = values[21] as Boolean,
             iconSizeStep = values[22] as Int,
+            taskBadges = taskBadges,
             activityHours = hourStatesFor(usage, values[8] as Int, nowMillis, usageAccess),
             hasUsageAccess = usageAccess
         )

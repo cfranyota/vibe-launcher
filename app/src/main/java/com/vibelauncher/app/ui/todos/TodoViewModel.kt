@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.vibelauncher.app.data.todos.TodoRepository
+import com.vibelauncher.app.features.vibebar.parseTodoText
 import com.vibelauncher.app.model.TodoItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,8 +32,11 @@ class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TodoUiState())
 
+    /** Same one-line syntax as Vibe Bar's '-' - a date typed with the to-do becomes its due
+     *  date ("ring vet tomorrow 4pm"). */
     fun addTodo(text: String) {
-        viewModelScope.launch { todoRepository.add(text) }
+        val draft = parseTodoText(text)
+        viewModelScope.launch { todoRepository.add(draft.text, draft.dueAt, draft.dueAllDay) }
     }
 
     fun setSort(newSort: TodoSort) {
@@ -66,11 +70,25 @@ class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
         menuForTaskId.value = null
     }
 
+    /** A date in the edited text replaces the due date; an edit with no date in it only
+     *  changes the text, so fixing a typo never silently drops a due date. */
     fun onSaveEdit(text: String) {
         val item = editingItem.value ?: return
+        val draft = parseTodoText(text)
         viewModelScope.launch {
-            todoRepository.update(item.id, text)
+            if (draft.dueAt != null) {
+                todoRepository.updateWithDue(item.id, draft.text, draft.dueAt, draft.dueAllDay)
+            } else {
+                todoRepository.update(item.id, draft.text)
+            }
             editingItem.value = null
+        }
+    }
+
+    fun clearDue(item: TodoItem) {
+        viewModelScope.launch {
+            todoRepository.clearDue(item.id)
+            menuForTaskId.value = null
         }
     }
 

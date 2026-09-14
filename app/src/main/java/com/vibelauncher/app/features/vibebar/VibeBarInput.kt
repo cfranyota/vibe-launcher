@@ -27,14 +27,16 @@ internal fun parseVibeBarInput(text: String, lockedPrefix: Char? = null): VibeBa
  *  Null when there's nothing meaningful to preview yet - '#' acts immediately on a tapped
  *  contact and never has a typed body. [eventPreview] is the already-formatted date/time
  *  for '*' (see [eventPreviewLabel]); it falls back to the raw text while the typed date
- *  is still too incomplete to parse. */
+ *  is still too incomplete to parse. [todoPreview] is the same for '-', but only when a
+ *  due date was actually found - a to-do doesn't need one. */
 internal fun previewTextFor(
     prefix: Char?,
     payload: String,
     selectedContact: ContactResult?,
-    eventPreview: String? = null
+    eventPreview: String? = null,
+    todoPreview: String? = null
 ): String? = when {
-    prefix == '-' && payload.isNotBlank() -> "to-do → $payload"
+    prefix == '-' && payload.isNotBlank() -> "to-do → ${todoPreview ?: payload}"
     prefix == VIBE_BAR_EVENT_PREFIX && payload.isNotBlank() -> "event → ${eventPreview ?: payload}"
     prefix == VIBE_BAR_NOTE_PREFIX && payload.isNotBlank() -> "note → $payload"
     prefix == '@' && selectedContact != null -> "text → ${selectedContact.name}"

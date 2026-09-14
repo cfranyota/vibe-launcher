@@ -22,15 +22,28 @@ class TodoRepository(private val context: Context) {
         stored?.let { runCatching { json.decodeFromString(serializer, it) }.getOrNull() } ?: emptyList()
     }
 
-    suspend fun add(text: String) {
+    suspend fun add(text: String, dueAt: Long? = null, dueAllDay: Boolean = false) {
         if (text.isBlank()) return
-        val todo = TodoItem(id = System.currentTimeMillis(), text = text.trim(), createdAt = System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        val todo = TodoItem(id = now, text = text.trim(), createdAt = now, dueAt = dueAt, dueAllDay = dueAllDay)
         save { it + todo }
     }
 
+    /** Changes only the text - an edit that didn't mention a date keeps the due date it had. */
     suspend fun update(id: Long, text: String) {
         if (text.isBlank()) return
         save { list -> list.map { if (it.id == id) it.copy(text = text.trim()) else it } }
+    }
+
+    suspend fun updateWithDue(id: Long, text: String, dueAt: Long, dueAllDay: Boolean) {
+        if (text.isBlank()) return
+        save { list ->
+            list.map { if (it.id == id) it.copy(text = text.trim(), dueAt = dueAt, dueAllDay = dueAllDay) else it }
+        }
+    }
+
+    suspend fun clearDue(id: Long) {
+        save { list -> list.map { if (it.id == id) it.copy(dueAt = null, dueAllDay = false) else it } }
     }
 
     suspend fun delete(id: Long) {

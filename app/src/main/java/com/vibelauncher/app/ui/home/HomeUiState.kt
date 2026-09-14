@@ -16,6 +16,9 @@ data class HomeUiState(
     /** Local to-dos only (as synthetic all-day entries) - what the bottom card renders.
      *  Real calendar all-day events render in the top card instead (see allDayEvents). */
     val tasks: List<CalendarEvent> = emptyList(),
+    /** Short due-date badge per task, keyed by the task's (negative) event id - only to-dos
+     *  with a due date have one; the rest keep the plain dot. */
+    val taskBadges: Map<Long, String> = emptyMap(),
     val eventsExpanded: Boolean = false,
     val tasksExpanded: Boolean = false,
     val hasCalendarPermission: Boolean = false,
