@@ -4,10 +4,14 @@ import com.vibelauncher.app.model.TodoItem
 
 enum class TodoSort { NEWEST, OLDEST, STARRED_FIRST, DUE_SOONEST }
 
+/** What the Undo snackbar would put back, and what it says - one delete or a whole Clear
+ *  completed share the same single Undo. */
+data class TodoUndo(val message: String, val items: List<TodoItem>)
+
 data class TodoUiState(
     val todos: List<TodoItem> = emptyList(),
     val editingItem: TodoItem? = null,
-    val lastDeleted: TodoItem? = null,
+    val pendingUndo: TodoUndo? = null,
     val sort: TodoSort = TodoSort.NEWEST,
     val menuForTaskId: Long? = null
 ) {

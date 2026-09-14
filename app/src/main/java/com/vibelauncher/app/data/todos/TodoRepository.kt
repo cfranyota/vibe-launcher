@@ -58,10 +58,25 @@ class TodoRepository(private val context: Context) {
         save { list -> list.map { if (it.id == id) it.copy(starred = starred) else it } }
     }
 
-    /** Puts a deleted to-do back exactly as it was (same id/createdAt) - backs the
-     *  To-Do screen's delete-with-Undo snackbar. */
-    suspend fun restore(todo: TodoItem) {
-        save { list -> if (list.any { it.id == todo.id }) list else list + todo }
+    /** Removes every finished to-do and returns what it removed, so the caller can offer
+     *  them back through Undo. */
+    suspend fun clearCompleted(): List<TodoItem> {
+        var removed = emptyList<TodoItem>()
+        save { list ->
+            removed = list.filter { it.done }
+            list.filterNot { it.done }
+        }
+        return removed
+    }
+
+    /** Puts removed to-dos back exactly as they were (same id/createdAt) - backs the To-Do
+     *  screen's Undo for both a single delete and Clear completed. Ids are creation times,
+     *  so sorting by id returns each one to its original place rather than the end. */
+    suspend fun restoreAll(items: List<TodoItem>) {
+        save { list ->
+            val missing = items.filter { item -> list.none { it.id == item.id } }
+            (list + missing).sortedBy { it.id }
+        }
     }
 
     private suspend fun save(transform: (List<TodoItem>) -> List<TodoItem>) {

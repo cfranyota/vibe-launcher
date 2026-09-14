@@ -16,17 +16,17 @@ import kotlinx.coroutines.launch
 class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
 
     private val editingItem = MutableStateFlow<TodoItem?>(null)
-    private val lastDeleted = MutableStateFlow<TodoItem?>(null)
+    private val pendingUndo = MutableStateFlow<TodoUndo?>(null)
     private val sort = MutableStateFlow(TodoSort.NEWEST)
     private val menuForTaskId = MutableStateFlow<Long?>(null)
 
     val uiState: StateFlow<TodoUiState> = combine(
-        todoRepository.todos, editingItem, lastDeleted, sort, menuForTaskId
-    ) { todos, editing, deleted, sort, menuId ->
+        todoRepository.todos, editingItem, pendingUndo, sort, menuForTaskId
+    ) { todos, editing, undo, sort, menuId ->
         TodoUiState(
             todos = todos,
             editingItem = editing,
-            lastDeleted = deleted,
+            pendingUndo = undo,
             sort = sort,
             menuForTaskId = menuId
         )
@@ -102,21 +102,33 @@ class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
     fun deleteTodo(item: TodoItem) {
         viewModelScope.launch {
             todoRepository.delete(item.id)
-            lastDeleted.value = item
+            pendingUndo.value = TodoUndo("To-do deleted", listOf(item))
             menuForTaskId.value = null
         }
     }
 
-    fun undoDelete() {
-        val item = lastDeleted.value ?: return
+    /** Same act-now-offer-Undo shape as a single delete - clearing finished to-dos is
+     *  easy to reverse, so it doesn't need a confirm dialog either. */
+    fun clearCompleted() {
         viewModelScope.launch {
-            todoRepository.restore(item)
-            lastDeleted.value = null
+            val removed = todoRepository.clearCompleted()
+            if (removed.isNotEmpty()) {
+                val message = if (removed.size == 1) "1 done to-do cleared" else "${removed.size} done to-dos cleared"
+                pendingUndo.value = TodoUndo(message, removed)
+            }
+        }
+    }
+
+    fun undo() {
+        val undo = pendingUndo.value ?: return
+        viewModelScope.launch {
+            todoRepository.restoreAll(undo.items)
+            pendingUndo.value = null
         }
     }
 
     fun dismissUndo() {
-        lastDeleted.value = null
+        pendingUndo.value = null
     }
 
     class Factory(private val todoRepository: TodoRepository) : ViewModelProvider.Factory {

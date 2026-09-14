@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -76,11 +77,12 @@ fun TodoScreen(viewModel: TodoViewModel, onBack: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.lastDeleted) {
-        if (uiState.lastDeleted != null) {
-            val result = snackbarHostState.showSnackbar(message = "To-do deleted", actionLabel = "Undo")
+    LaunchedEffect(uiState.pendingUndo) {
+        val undo = uiState.pendingUndo
+        if (undo != null) {
+            val result = snackbarHostState.showSnackbar(message = undo.message, actionLabel = "Undo")
             if (result == SnackbarResult.ActionPerformed) {
-                viewModel.undoDelete()
+                viewModel.undo()
             } else {
                 viewModel.dismissUndo()
             }
@@ -105,7 +107,12 @@ fun TodoScreen(viewModel: TodoViewModel, onBack: () -> Unit) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            TodoHeader(uiState = uiState, onBack = onBack, onSortSelected = viewModel::setSort)
+            TodoHeader(
+                uiState = uiState,
+                onBack = onBack,
+                onSortSelected = viewModel::setSort,
+                onClearCompleted = viewModel::clearCompleted
+            )
 
             if (uiState.todos.isEmpty()) {
                 Text(
@@ -152,7 +159,12 @@ fun TodoScreen(viewModel: TodoViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun TodoHeader(uiState: TodoUiState, onBack: () -> Unit, onSortSelected: (TodoSort) -> Unit) {
+private fun TodoHeader(
+    uiState: TodoUiState,
+    onBack: () -> Unit,
+    onSortSelected: (TodoSort) -> Unit,
+    onClearCompleted: () -> Unit
+) {
     var sortMenuExpanded by remember { mutableStateOf(false) }
 
     Row(
@@ -174,13 +186,19 @@ private fun TodoHeader(uiState: TodoUiState, onBack: () -> Unit, onSortSelected:
         }
         Box {
             IconButton(onClick = { sortMenuExpanded = true }) {
-                Icon(imageVector = Icons.Filled.Tune, contentDescription = "Sort", tint = LauncherWhite)
+                Icon(imageVector = Icons.Filled.Tune, contentDescription = "Sort and options", tint = LauncherWhite)
             }
             DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = { sortMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text("Newest first") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.NEWEST) })
                 DropdownMenuItem(text = { Text("Oldest first") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.OLDEST) })
                 DropdownMenuItem(text = { Text("Starred first") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.STARRED_FIRST) })
                 DropdownMenuItem(text = { Text("Due soonest") }, onClick = { sortMenuExpanded = false; onSortSelected(TodoSort.DUE_SOONEST) })
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("Clear completed") },
+                    enabled = uiState.doneCount > 0,
+                    onClick = { sortMenuExpanded = false; onClearCompleted() }
+                )
             }
         }
     }
