@@ -52,6 +52,7 @@ import com.vibelauncher.app.ui.settings.LetterShortcutsViewModel
 import com.vibelauncher.app.ui.settings.MonkModeScreen
 import com.vibelauncher.app.ui.settings.SettingsScreen
 import com.vibelauncher.app.ui.settings.SettingsViewModel
+import com.vibelauncher.app.ui.setup.SetupMode
 import com.vibelauncher.app.ui.setup.SetupScreen
 import com.vibelauncher.app.ui.setup.SetupViewModel
 import com.vibelauncher.app.ui.notes.NoteEditorScreen
@@ -78,7 +79,11 @@ const val ROUTE_HUB = "hub"
 const val ROUTE_EMAIL_APPS = "email_apps"
 const val ROUTE_NOTES = "notes"
 const val ROUTE_NOTE_EDITOR = "note_editor/{noteId}"
-const val ROUTE_SETUP = "setup"
+const val ROUTE_SETUP = "setup/{mode}"
+
+/** A concrete setup route - [SetupMode.FULL] for first-run setup, [SetupMode.TOUR] for the
+ *  how-to on its own. */
+fun setupRoute(mode: SetupMode) = "setup/${mode.routeValue}"
 
 @Composable
 fun VibeLauncherApp(navController: NavHostController = rememberNavController()) {
@@ -294,11 +299,17 @@ fun VibeLauncherApp(navController: NavHostController = rememberNavController()) 
                 )
                 TodoScreen(viewModel = todoViewModel, onBack = { navController.popBackStack() })
             }
-            composable(ROUTE_SETUP) {
+            composable(
+                ROUTE_SETUP,
+                arguments = listOf(navArgument("mode") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val mode = SetupMode.fromRoute(backStackEntry.arguments?.getString("mode"))
                 val setupViewModel: SetupViewModel = viewModel(
                     factory = SetupViewModel.Factory(
                         context.applicationContext,
+                        mode,
                         container.settingsRepository,
+                        container.todoRepository,
                         container.usageActivityRepository
                     )
                 )
@@ -314,7 +325,7 @@ fun VibeLauncherApp(navController: NavHostController = rememberNavController()) 
         LaunchedEffect(needsFirstRunSetup) {
             if (needsFirstRunSetup && !firstRunSetupOpened) {
                 firstRunSetupOpened = true
-                navController.navigate(ROUTE_SETUP)
+                navController.navigate(setupRoute(SetupMode.FULL))
             }
         }
         }

@@ -65,7 +65,7 @@ internal fun PermissionStep(
         SetupStep.NOTIFICATIONS -> NotificationsStep(label, access.notifications)
         SetupStep.USAGE -> UsageStep(label, access.usage)
         SetupStep.WEATHER -> WeatherStep(label, zipCode, onSaveZipCode)
-        SetupStep.WELCOME, SetupStep.DONE -> Unit
+        else -> Unit
     }
 }
 

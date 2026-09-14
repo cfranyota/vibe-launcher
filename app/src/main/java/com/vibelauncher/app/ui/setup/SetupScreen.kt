@@ -106,7 +106,17 @@ fun SetupScreen(viewModel: SetupViewModel, onFinished: () -> Unit) {
                 val label = "${index + 1} / ${uiState.steps.size}"
                 when (step) {
                     SetupStep.WELCOME -> WelcomeStep(label)
-                    SetupStep.DONE -> DoneStep(label)
+                    SetupStep.DONE -> DoneStep(label, uiState.mode)
+                    SetupStep.VIBE_BAR,
+                    SetupStep.TRY_IT,
+                    SetupStep.HOME_SCREEN,
+                    SetupStep.TILES_AND_SHORTCUTS,
+                    SetupStep.SETTINGS -> TourStep(
+                        step = step,
+                        label = label,
+                        triedTodo = uiState.triedTodo,
+                        onSaveTodo = viewModel::saveTryItTodo
+                    )
                     else -> PermissionStep(
                         step = step,
                         label = label,
@@ -144,6 +154,8 @@ private fun nextLabelFor(state: SetupUiState): String {
         SetupStep.USAGE -> if (access.usage) "next" else "not now"
         SetupStep.WEATHER -> if (state.zipCode.isNotBlank()) "next" else "skip"
         SetupStep.LETTER_KEYS -> "next"
+        SetupStep.TRY_IT -> if (state.triedTodo != null) "next" else "skip"
+        SetupStep.VIBE_BAR, SetupStep.HOME_SCREEN, SetupStep.TILES_AND_SHORTCUTS, SetupStep.SETTINGS -> "next"
     }
 }
 
@@ -156,9 +168,15 @@ private fun WelcomeStep(label: String) {
 }
 
 @Composable
-private fun DoneStep(label: String) {
+private fun DoneStep(label: String, mode: SetupMode) {
+    if (mode == SetupMode.TOUR) {
+        StepLayout(label = label, title = "that's the tour") {
+            StepText("it's here whenever you want it again, in settings.")
+        }
+        return
+    }
     StepLayout(label = label, title = "you're all set") {
-        StepText("anything you skipped can be turned on later.")
+        StepText("anything you skipped can be turned on later, and this whole walkthrough can be run again.")
         StepText("settings: swipe up on home, then long-press any app and tap settings.")
     }
 }
