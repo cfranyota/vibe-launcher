@@ -33,6 +33,10 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- Unihertz Titan "Shortcut keys" settings - not a launcher app, so the intent above
+             doesn't make it visible. Setup links to it so the phone's own keyboard shortcuts
+             can be switched off; they swallow letter keys before any launcher sees them. -->
+        <package android:name="com.agui.shortcutsettings" />
     </queries>
 
     <application

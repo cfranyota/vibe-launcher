@@ -27,7 +27,11 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.hasCategory(Intent.CATEGORY_HOME)) {
-            navController?.popBackStack(ROUTE_HOME, inclusive = false)
+            val controller = navController ?: return
+            // The home key doesn't skip past setup - leaving it that way saves nothing, and a
+            // first-run setup would only reappear on the next launch.
+            if (controller.currentDestination?.route == ROUTE_SETUP) return
+            controller.popBackStack(ROUTE_HOME, inclusive = false)
         }
     }
 }

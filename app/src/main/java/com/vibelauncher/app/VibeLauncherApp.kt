@@ -9,8 +9,12 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -48,6 +52,8 @@ import com.vibelauncher.app.ui.settings.LetterShortcutsViewModel
 import com.vibelauncher.app.ui.settings.MonkModeScreen
 import com.vibelauncher.app.ui.settings.SettingsScreen
 import com.vibelauncher.app.ui.settings.SettingsViewModel
+import com.vibelauncher.app.ui.setup.SetupScreen
+import com.vibelauncher.app.ui.setup.SetupViewModel
 import com.vibelauncher.app.ui.notes.NoteEditorScreen
 import com.vibelauncher.app.ui.notes.NoteEditorViewModel
 import com.vibelauncher.app.ui.notes.NoteListScreen
@@ -72,6 +78,7 @@ const val ROUTE_HUB = "hub"
 const val ROUTE_EMAIL_APPS = "email_apps"
 const val ROUTE_NOTES = "notes"
 const val ROUTE_NOTE_EDITOR = "note_editor/{noteId}"
+const val ROUTE_SETUP = "setup"
 
 @Composable
 fun VibeLauncherApp(navController: NavHostController = rememberNavController()) {
@@ -286,6 +293,28 @@ fun VibeLauncherApp(navController: NavHostController = rememberNavController()) 
                     factory = TodoViewModel.Factory(container.todoRepository)
                 )
                 TodoScreen(viewModel = todoViewModel, onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_SETUP) {
+                val setupViewModel: SetupViewModel = viewModel(
+                    factory = SetupViewModel.Factory(
+                        context.applicationContext,
+                        container.settingsRepository,
+                        container.usageActivityRepository
+                    )
+                )
+                SetupScreen(viewModel = setupViewModel, onFinished = { navController.popBackStack() })
+            }
+        }
+
+        // Home stays the start destination so an everyday launch never waits on reading
+        // settings; a fresh install gets setup laid over home as soon as that read comes back.
+        // The latch survives configuration changes so setup is only ever opened once here.
+        val needsFirstRunSetup by container.settingsRepository.needsFirstRunSetup.collectAsState(initial = false)
+        var firstRunSetupOpened by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(needsFirstRunSetup) {
+            if (needsFirstRunSetup && !firstRunSetupOpened) {
+                firstRunSetupOpened = true
+                navController.navigate(ROUTE_SETUP)
             }
         }
         }
