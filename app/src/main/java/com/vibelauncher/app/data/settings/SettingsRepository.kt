@@ -26,6 +26,7 @@ private val ICON_SIZE_STEP_KEY = intPreferencesKey("icon_size_step")
 private val HOME_ICONS_STAY_DEFAULT_KEY = booleanPreferencesKey("home_icons_stay_default")
 private val MONK_ESSENTIALS_ONLY_ENABLED_KEY = booleanPreferencesKey("monk_essentials_only_enabled")
 private val MONK_HIDE_SOCIAL_BROWSER_ENABLED_KEY = booleanPreferencesKey("monk_hide_social_browser_enabled")
+private val SETUP_COMPLETE_KEY = booleanPreferencesKey("setup_complete")
 
 /** Default event-card color, matching `LauncherCard` in ui/theme/Color.kt (0xFF1A1A1A) -
  *  duplicated as a raw constant here so this data-layer file doesn't need to depend on
@@ -177,4 +178,23 @@ class SettingsRepository(private val context: Context) {
     suspend fun setMonkHideSocialBrowserEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[MONK_HIDE_SOCIAL_BROWSER_ENABLED_KEY] = enabled }
     }
+
+    /** Whether first-run setup still needs to be shown. Finishing setup records that; until
+     *  then only a genuinely fresh install needs it - an install that's been updated was in
+     *  use before setup existed, so it goes straight home instead of being walked through
+     *  permissions it has likely already granted. */
+    val needsFirstRunSetup = context.settingsDataStore.data.map { prefs ->
+        prefs[SETUP_COMPLETE_KEY]?.not() ?: isFreshInstall()
+    }
+
+    suspend fun markSetupComplete() {
+        context.settingsDataStore.edit { it[SETUP_COMPLETE_KEY] = true }
+    }
+
+    /** A fresh install has never been updated, so both timestamps are the same moment. */
+    private fun isFreshInstall(): Boolean = runCatching {
+        @Suppress("DEPRECATION")
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        info.firstInstallTime == info.lastUpdateTime
+    }.getOrDefault(false)
 }
