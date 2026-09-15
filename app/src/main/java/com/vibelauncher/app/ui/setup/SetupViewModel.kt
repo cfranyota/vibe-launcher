@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -126,11 +127,17 @@ class SetupViewModel(
         if (index.value < steps.lastIndex) index.value += 1
     }
 
-    /** False when already on the first step, so the caller knows Back had nowhere to go. */
-    fun back(): Boolean {
-        if (index.value == 0) return false
-        index.value -= 1
-        return true
+    /** Steps backwards. On the first step Back leaves - the tour, or setup someone already
+     *  finished once, can always be closed - except during first-run setup, where leaving
+     *  would just bring it back on the next launch. */
+    fun back(onLeave: () -> Unit) {
+        if (index.value > 0) {
+            index.value -= 1
+            return
+        }
+        viewModelScope.launch {
+            if (mode == SetupMode.TOUR || !settingsRepository.needsFirstRunSetup.first()) onLeave()
+        }
     }
 
     fun refreshAccess() {

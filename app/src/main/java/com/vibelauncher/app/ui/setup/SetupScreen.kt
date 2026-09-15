@@ -43,6 +43,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -79,9 +80,8 @@ fun SetupScreen(viewModel: SetupViewModel, onFinished: () -> Unit) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Back steps backwards through setup; on the first step there's nowhere to go, and
-    // leaving setup that way would just bring it back on the next launch.
-    BackHandler { viewModel.back() }
+    // Back steps backwards; on the first step it leaves, unless this is first-run setup.
+    BackHandler { viewModel.back(onLeave = onFinished) }
 
     MaterialTheme(typography = settingsTypography()) {
         Column(
@@ -99,7 +99,9 @@ fun SetupScreen(viewModel: SetupViewModel, onFinished: () -> Unit) {
                     (slideInHorizontally { if (forward) it / 3 else -it / 3 } + fadeIn()) togetherWith
                         (slideOutHorizontally { if (forward) -it / 3 else it / 3 } + fadeOut())
                 },
-                modifier = Modifier.weight(1f),
+                // With the keyboard open a step scrolls up to keep its text field in view; the
+                // gap keeps the edge its title scrolls under clear of the step dots.
+                modifier = Modifier.weight(1f).padding(top = 16.dp).clipToBounds(),
                 label = "setup step"
             ) { index ->
                 val step = uiState.steps[index]
@@ -131,7 +133,7 @@ fun SetupScreen(viewModel: SetupViewModel, onFinished: () -> Unit) {
             SetupFooter(
                 showBack = !uiState.isFirst,
                 nextLabel = nextLabelFor(uiState),
-                onBack = { viewModel.back() },
+                onBack = { viewModel.back(onLeave = onFinished) },
                 onNext = {
                     if (uiState.step == SetupStep.DONE) viewModel.finish(onFinished) else viewModel.next()
                 }
@@ -219,7 +221,7 @@ internal fun StepLayout(label: String, title: String, content: @Composable Colum
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(top = 28.dp),
+            .padding(top = 12.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(label, color = LocalAccentColor.current, style = MaterialTheme.typography.labelSmall)

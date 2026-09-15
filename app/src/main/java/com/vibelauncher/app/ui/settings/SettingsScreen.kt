@@ -125,7 +125,7 @@ fun SettingsScreen(
 
             ToggleRow(
                 title = "Vibe Bar",
-                subtitle = "the '/' bar for quick actions",
+                subtitle = "start typing on home to text, call, add to-dos and events",
                 checked = uiState.vibeBarEnabled,
                 onCheckedChange = viewModel::setVibeBarEnabled
             )
