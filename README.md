@@ -53,7 +53,7 @@ You can come back to either any time from **Settings → Help** ("how to use vib
   - This uses Usage Access, and all of it stays on the phone.
 - **Calendar card**: leads with your current or next event. Tap it to expand the whole day.
 - **To-Do card**: leads with whatever is due next, with a due badge (`45m`, `today`, `tmr`, `late`).
-- **8 tiles**: any installed app or one of Vibe's own actions (To-Do, Notes, Calendar, Clock, Camera and more). Long-press a tile to swap it. Tiles show a badge when their app has a notification.
+- **8 tiles**: any installed app or one of Vibe's own actions (To-Do, Notes, Calendar, AI, Camera and more). The **AI** tile opens whichever assistant app is your phone's default (Gemini, ChatGPT, Claude…). Long-press a tile to swap it. Tiles show a badge when their app has a notification.
 - **Icon borders**: an optional outline around each tile.
   - Steps 1–5 grow a square up to the biggest size that fits.
   - Steps 6–10 widen the tiles without making them taller, until neighbors touch at 10.

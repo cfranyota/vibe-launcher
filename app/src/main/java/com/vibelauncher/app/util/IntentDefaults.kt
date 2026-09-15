@@ -5,7 +5,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.provider.AlarmClock
 import android.provider.CalendarContract
 import android.provider.MediaStore
 import android.provider.Telephony
@@ -56,7 +55,7 @@ object IntentDefaults {
     fun defaultTiles(): List<Tile> = listOf(
         Tile(0, "Note", "builtin:note", TileTarget.BuiltIn(BuiltInAction.NOTE)),
         Tile(1, "Calendar", "builtin:event", TileTarget.BuiltIn(BuiltInAction.EVENT)),
-        Tile(2, "Clock", "builtin:timer", TileTarget.BuiltIn(BuiltInAction.TIMER)),
+        Tile(2, "AI", "builtin:assistant", TileTarget.BuiltIn(BuiltInAction.ASSISTANT)),
         Tile(3, "To-Do", "builtin:todo", TileTarget.BuiltIn(BuiltInAction.TODO)),
         Tile(4, "Call", "builtin:call", TileTarget.BuiltIn(BuiltInAction.CALL)),
         Tile(5, "Messages", "builtin:message", TileTarget.BuiltIn(BuiltInAction.MESSAGE)),
@@ -73,22 +72,17 @@ object IntentDefaults {
         // insertCalendarEvent below) - no title/time prefilled here since this is the tile
         // tap path, not a Vibe Bar submission.
         BuiltInAction.EVENT -> Intent(Intent.ACTION_INSERT).setData(CalendarContract.Events.CONTENT_URI)
-        BuiltInAction.TIMER -> {
-            // Jump straight to the Clock app's Timer tab where supported (API 30+ AOSP/Google
-            // Clock and most derivatives); ACTION_SET_TIMER is the next-best fallback (opens the
-            // Timer tab via a "set a timer" flow on older or non-standard Clock apps); if neither
-            // resolves, fall back to just opening the Clock app's own main screen, identified via
-            // ACTION_SHOW_ALARMS (a system intent every Clock app has supported since API 1) so we
-            // land in the same app instead of guessing a package name.
-            val showTimers = Intent(AlarmClock.ACTION_SHOW_TIMERS)
-            val setTimer = Intent(AlarmClock.ACTION_SET_TIMER)
-            when {
-                showTimers.resolveActivity(context.packageManager) != null -> showTimers
-                setTimer.resolveActivity(context.packageManager) != null -> setTimer
-                else -> Intent(AlarmClock.ACTION_SHOW_ALARMS)
-                    .resolveActivity(context.packageManager)?.packageName
-                    ?.let { context.packageManager.getLaunchIntentForPackage(it) }
-            }
+        BuiltInAction.ASSISTANT -> {
+            // Opens the app itself for whichever assistant the phone has set (Gemini, ChatGPT,
+            // Claude...). ACTION_ASSIST alone isn't enough: with more than one assistant
+            // installed it lands on a chooser rather than the default. If the default can't be
+            // read, fall back to those generic intents; with neither, null opens the app picker.
+            val assist = Intent(Intent.ACTION_ASSIST)
+            val voiceCommand = Intent(Intent.ACTION_VOICE_COMMAND)
+            val pm = context.packageManager
+            defaultAssistantPackage(context)?.let { pm.getLaunchIntentForPackage(it) }
+                ?: assist.takeIf { it.resolveActivity(pm) != null }
+                ?: voiceCommand.takeIf { it.resolveActivity(pm) != null }
         }
         BuiltInAction.CALL -> Intent(Intent.ACTION_DIAL)
         BuiltInAction.MESSAGE -> {
@@ -107,6 +101,18 @@ object IntentDefaults {
         BuiltInAction.CAMERA -> Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
         BuiltInAction.MEMO -> Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
     }
+
+    /** The package holding the phone's Digital assistant setting. RoleManager won't tell other
+     *  apps who holds a role, but the setting Android keeps alongside it names the assistant's
+     *  component - "assistant", or "voice_interaction_service" for voice-first ones. Null if
+     *  neither is set or readable. */
+    private fun defaultAssistantPackage(context: Context): String? = runCatching {
+        listOf("assistant", "voice_interaction_service").firstNotNullOfOrNull { key ->
+            android.provider.Settings.Secure.getString(context.contentResolver, key)
+                ?.takeIf { it.isNotBlank() }
+                ?.let { ComponentName.unflattenFromString(it)?.packageName }
+        }
+    }.getOrNull()
 
     /** Best-effort package name for notification-badge lookups. Reassigned tiles resolve
      *  trivially; built-in actions with a fixed default handler (Message, Call) resolve

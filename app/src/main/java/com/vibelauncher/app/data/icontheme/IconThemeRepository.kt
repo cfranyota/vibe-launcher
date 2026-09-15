@@ -32,7 +32,8 @@ private val ICON_PACK_CATEGORIES = listOf(
 private val BUILT_IN_KEYWORDS: Map<BuiltInAction, List<String>> = mapOf(
     BuiltInAction.NOTE to listOf("note"),
     BuiltInAction.EVENT to listOf("event", "calendar"),
-    BuiltInAction.TIMER to listOf("timer", "alarm", "clock"),
+    // No bare "ai" - it's inside "mail", "rain", "chair"...
+    BuiltInAction.ASSISTANT to listOf("assistant", "gemini", "sparkle"),
     BuiltInAction.TODO to listOf("todo", "checklist", "task"),
     BuiltInAction.CALL to listOf("call", "phone", "dialer"),
     // "messaging" deliberately listed alongside "message" - some packs (e.g. drawables

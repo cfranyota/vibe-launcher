@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import com.vibelauncher.app.model.Tile
+import com.vibelauncher.app.model.TileTarget
 import com.vibelauncher.app.util.IntentDefaults
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -17,8 +18,17 @@ class TileRepository(private val context: Context) {
     private val listSerializer = ListSerializer(Tile.serializer())
 
     val tiles: Flow<List<Tile>> = context.tilesDataStore.data.map { prefs ->
-        prefs[TILES_LIST_KEY]?.let { runCatching { json.decodeFromString(listSerializer, it) }.getOrNull() }
-            ?: legacyOrDefault(prefs)
+        (prefs[TILES_LIST_KEY]?.let { runCatching { json.decodeFromString(listSerializer, it) }.getOrNull() }
+            ?: legacyOrDefault(prefs)).map(::withCurrentBuiltInLabel)
+    }
+
+    /** Built-in tiles save their label, but it isn't something people can edit - so show the
+     *  current one. That's how a saved "Clock" tile reads "AI" now that the slot changed. */
+    private fun withCurrentBuiltInLabel(tile: Tile): Tile {
+        val target = tile.target as? TileTarget.BuiltIn ?: return tile
+        val current = IntentDefaults.defaultTiles().firstOrNull { (it.target as? TileTarget.BuiltIn)?.kind == target.kind }
+            ?: return tile
+        return tile.copy(label = current.label, iconKey = current.iconKey)
     }
 
     /** Reads the OLD per-slot keys if any are present (an existing user's current setup),

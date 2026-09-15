@@ -8,7 +8,6 @@ import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Notes
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Sms
-import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.vibelauncher.app.model.BuiltInAction
 
@@ -16,7 +15,7 @@ import com.vibelauncher.app.model.BuiltInAction
 fun builtInIcon(action: BuiltInAction): ImageVector = when (action) {
     BuiltInAction.NOTE -> Icons.Outlined.Notes
     BuiltInAction.EVENT -> Icons.Outlined.CalendarMonth
-    BuiltInAction.TIMER -> Icons.Outlined.Timer
+    BuiltInAction.ASSISTANT -> AiSparkles
     BuiltInAction.TODO -> Icons.Outlined.Checklist
     BuiltInAction.CALL -> Icons.Outlined.Phone
     BuiltInAction.MESSAGE -> Icons.Outlined.Sms
