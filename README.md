@@ -135,6 +135,11 @@ A personal project, built iteratively through hands-on testing on a real device.
 
 ## Changelog
 
+- **1.0.17**: AI tile, plus setup and Settings fixes.
+  - **AI tile replaces Clock.** A big and a small sparkle; tapping it opens whichever app is your phone's default assistant (Gemini, ChatGPT, Claude…). Existing Clock tiles turn into it, and the real Clock app can still go on any tile.
+  - **Back closes the tour.** Back on the first card of "how to use vibe", or of "run setup again", now leaves. First-run setup still can't be backed out of.
+  - **Setup keyboard fix.** With the keyboard open, a step's title no longer scrolls up against the step dots.
+  - **Settings.** The Vibe Bar switch no longer mentions the old `/` bar.
 - **1.0.16**: First-run setup and feature tour, due dates on to-dos, smarter dates, new icon size defaults.
   - **Setup.** A fresh install walks through making Vibe the home screen, Titan letter-key shortcuts, and calendar, contacts, texting & calling, notification access, usage access and weather location. Every step is skippable.
   - **Tour.** A tour follows setup, including a try-it step that saves a real to-do.
